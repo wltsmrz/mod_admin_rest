@@ -2,11 +2,11 @@
 
 A RESTful admin interface to [Prosody](http://prosody.im/) XMPP server.
 
-**Why**
+###Why
 
 There are a few ways to administer Prosody; by using either the `mod_admin_telnet`, `mod_admin_adhoc`, or via `prosodyctl`. Each has an independent purpose but there is considerable functional overlap. `mod_admin_rest` seeks to enable a more programmatic interface to Prosody commands that exist in the stock admin modules, and some commands that don't.
 
-**Note**
+##Note
 
 Compatible with `v0.9`. Not tested and likely incompatible with previous versions.
 
