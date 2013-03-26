@@ -105,7 +105,7 @@ If message was sent successfully, response status code is `200`. If message was 
 
 ##Options
 
-Add any of the following options to your `prosody.cfg.lua`.
+Add any of the following options to your `prosody.cfg.lua`.  You may forward additional HTTP options to Prosody's `http` module.
 
 * `admin_rest_secure` **boolean** [false]
 
@@ -117,7 +117,13 @@ Base path. Default paths begin with `/admin_rest`.
 
 * `admin_rest_whitelist` **array** [nil]
 
-List of IP addresses to whitelist. Only these IP addresses will be allowed to issue commands over HTTP.
+List of IP addresses to whitelist. Only these IP addresses will be allowed to issue commands over HTTP. If you modify the whitelist while Prosody is running, you will need to reload `admin_rest` module. One way you can do this is by connecting to `admin_telnet` service which runs by default on port `5582`. Then issue the command:
 
-You may forward additional HTTP options to Prosody's `http` module.
+```
+module:reload("admin_rest", <host>)
+```
 
+##TODO
+
+* Proper module logging
+* More commands. Roster management perhaps, broadcast announcement
