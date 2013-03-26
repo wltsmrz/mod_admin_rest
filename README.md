@@ -24,11 +24,11 @@ Your admin_rest HTTP server is now listening on Prosody's default HTTP service p
 
 All requests must contain Basic authentication for a user who has administrative privileges. Additionally, some commands may require request bodies. Request paths have the following general structure:
 
-/admin_rest/`route`/`hostname`/`resource`/`attribute`
+> /admin_rest/`route`/`hostname`/`resource`/`attribute`
 
 Responses are JSON-encoded objects and have the form:
 
-```{ message: { success: boolean, ... } }``
+> ```{ message: { success: boolean, ... } }``
 
 `mod_admin_rest` makes appropriate use of HTTP status codes and request methods.
 
