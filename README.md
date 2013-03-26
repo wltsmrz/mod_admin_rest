@@ -28,7 +28,7 @@ All requests must contain Basic authentication for a user who has administrative
 
 Responses are JSON-encoded objects and have the form:
 
-> ```{ message: { success: boolean, ... } }``
+> ```{ success: boolean, message: { ... } }``
 
 `mod_admin_rest` makes appropriate use of HTTP status codes and request methods.
 
