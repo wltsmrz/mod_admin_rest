@@ -40,13 +40,13 @@ A handful of useful commands are supported. More will come in the future.
 
 If the user does not exist, response status code is `404`. Otherwise `200`. If a user is offline, response will contain user session data and roster. Otherwise the user's roster alone will be sent, along with `offline=true`.
 
-**GET** /admin_rest/user/`hostname`/`username`
+>> **GET** /admin_rest/user/`hostname`/`username`
 
 ```
 {
   user: {
-    session: {},
-    roster: {}
+    session: { ... },
+    roster: { ... }
   }
 }
 ```
