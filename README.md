@@ -1,5 +1,4 @@
-
-##mod_admin_rest
+#mod_admin_rest
 
 A RESTful admin interface to [Prosody](http://prosody.im/) XMPP server.
 
@@ -13,7 +12,7 @@ Compatible with `v0.9`. Not tested and likely incompatible with previous version
 
 ##Usage
 
-**Installation**
+###Installation
 
 1. Place `mod_admin_rest.lua` in your `plugins` directory.
 2. Add `admin_rest` to `modules_enabled` list of your `prosody.cfg.lua`
@@ -21,7 +20,7 @@ Compatible with `v0.9`. Not tested and likely incompatible with previous version
 
 Your admin_rest HTTP server is now listening on Prosody's default HTTP service port (`5280`)
 
-**Issuing commands**
+##Issuing commands
 
 All requests must contain Basic authentication for a user who has administrative privileges. Additionally, some commands may require request bodies. Request paths have the following general structure:
 
@@ -37,7 +36,7 @@ Responses are JSON-encoded objects and have the form:
 
 A handful of useful commands are supported. More will come in the future.
 
-###`get user`
+###get user
 
 If the user does not exist, response status code is `404`. Otherwise `200`. If a user is offline, response will contain user session data and roster. Otherwise the user's roster alone will be sent, along with `offline=true`.
 
@@ -52,19 +51,19 @@ If the user does not exist, response status code is `404`. Otherwise `200`. If a
 }
 ```
 
-###`add user`
+###add user
 
 **POST** /admin_rest/user/`hostname`/`username`
 
 Add a user. If the user exists, response status code is `409`. If a user is successfully created, `201`.
 
-###`remove user`
+###remove user
 
 **DELETE** /admin_rest/user/`hostname`/`username`
 
 Removes a user. If the user does not exist, response status code is `404`. If a user is successfully removed, `200`.
 
-* `change user attributes`
+###change user attributes
 
 **PATCH** /admin_rest/user/`hostname`/`username`/`attribute`
 
@@ -90,7 +89,7 @@ With request body:
 
 If a user was updated successfully, response status code is `200`. If a user does not exist, response status code is `404`.
 
-* `send message`
+###send message
 
 **POST** /admin_rest/message/`hostname`/`username`
 
@@ -121,6 +120,4 @@ Base path. Default paths begin with `/admin_rest`.
 List of IP addresses to whitelist. Only these IP addresses will be allowed to issue commands over HTTP.
 
 You may forward additional HTTP options to Prosody's `http` module.
-
-
 
