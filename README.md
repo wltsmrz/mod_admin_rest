@@ -53,21 +53,21 @@ If the user does not exist, response status code is `404`. Otherwise `200`. If a
 
 ###add user
 
-> **POST** /admin_rest/user/`hostname`/`username`
-
 Add a user. If the user exists, response status code is `409`. If a user is successfully created, `201`.
+
+> **POST** /admin_rest/user/`hostname`/`username`
 
 ###remove user
 
-> **DELETE** /admin_rest/user/`hostname`/`username`
-
 Removes a user. If the user does not exist, response status code is `404`. If a user is successfully removed, `200`.
+
+> **DELETE** /admin_rest/user/`hostname`/`username`
 
 ###change user attributes
 
-> **PATCH** /admin_rest/user/`hostname`/`username`/`attribute`
+The only implemented attribute for now is `password`. Ultimately roster modifications may be implemented. Supply values for attributes in the request body as encoded JSON:
 
-The only implemented patch for now is `password`. Ultimately roster modifications may be implemented. Supply values for attributes in the request body as encoded JSON:
+> **PATCH** /admin_rest/user/`hostname`/`username`/`attribute`
 
 ```
 {
@@ -91,9 +91,9 @@ If a user was updated successfully, response status code is `200`. If a user doe
 
 ###send message
 
-> **POST** /admin_rest/message/`hostname`/`username`
+Send a message to a particular user on a particular host. Broadcasts are not yet supported. Messages are sent from the hostname. Include the content of your message in a JSON-encoded request body of the form: 
 
-Send a message to a particular user on a particular host. Messages are sent from the hostname. Include the content of your message in a JSON-encoded request body of the form:
+> **POST** /admin_rest/message/`hostname`/`username`
 
 ```
 {
