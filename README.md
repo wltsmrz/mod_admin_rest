@@ -10,15 +10,13 @@ There are a few ways to administer Prosody; by using either the `mod_admin_telne
 
 Compatible with `v0.9`. Not tested and likely incompatible with previous versions.
 
-##Usage
-
 ###Installation
 
 1. Place `mod_admin_rest.lua` in your `plugins` directory.
 2. Add `admin_rest` to `modules_enabled` list of your `prosody.cfg.lua`
 3. Start or restart Prosody
 
-Your admin_rest HTTP server is now listening on Prosody's default HTTP service port (`5280`)
+Your admin_rest HTTP server is now listening on Prosody's HTTP service port (Default `5280`)
 
 ##Issuing commands
 
@@ -57,6 +55,14 @@ Add a user. If the user exists, response status code is `409`. If a user is succ
 
 > **POST** /admin_rest/user/`hostname`/`username`
 
+Include `password` in the request body
+
+```
+{
+  password: "mypassword"
+}
+```
+
 ###remove user
 
 Removes a user. If the user does not exist, response status code is `404`. If a user is successfully removed, `200`.
@@ -91,7 +97,7 @@ If a user was updated successfully, response status code is `200`. If a user doe
 
 ###send message
 
-Send a message to a particular user on a particular host. Broadcasts are not yet supported. Messages are sent from the hostname. Include the content of your message in a JSON-encoded request body of the form: 
+Send a message to a particular user on a particular host. Broadcasts are not yet supported. Messages are sent from the hostname. Include the content of your message in a JSON-encoded request body.
 
 > **POST** /admin_rest/message/`hostname`/`username`
 
