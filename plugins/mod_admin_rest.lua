@@ -222,9 +222,7 @@ local function remove_user(event, path, body)
   local hostname = nameprep(path.hostname);
   local username = nodeprep(path.resource);
 
-  local valid_body = hostname and username;
-
-  if not valid_body then
+  if not hostname and username then
     return respond(event, RESPONSES.invalid_path);
   end
 
