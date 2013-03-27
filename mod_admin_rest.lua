@@ -170,24 +170,6 @@ local function get_session(hostname, username)
   return sessions and sessions[username];
 end
 
-local function broadcast_message(event, path, body)
-  local hostname = nameprep(path.hostname);
-  local sessions = get_sessions(hostname);
-  local count = 0;
-
-  local text = body.message or "";
-
-  for username, user in pairs(sessions or {}) do
-    local jid = jid_join(username, hostname);
-    local attrs = { to = jid, from = hostname };
-    local message = stanza.message(attrs):tag("body"):text(text);
-    module:send(message);
-    count = count + 1;
-  end
-
-  return respond(event, Response(200, { count = count }));
-end
-
 local function get_connected_users(hostname) 
   local sessions = get_sessions(hostname) or { };
   local users = { };
@@ -253,7 +235,7 @@ local function get_users(event, path, body)
 
   local users = get_connected_users(hostname);
 
-  respond(event, Response(200, { users = users }));
+  respond(event, Response(200, { users = users, count = #users }));
 end
 
 local function add_user(event, path, body)
@@ -369,6 +351,34 @@ local function send_message(event, path, body)
   respond(event, RESPONSES.sent_message);
 end
 
+local function broadcast_message(event, path, body)
+  local hostname = nameprep(path.hostname);
+  local sessions = get_sessions(hostname);
+  local count = 0;
+
+  local text = body.message or "";
+
+  for username, user in pairs(sessions or {}) do
+    local jid = jid_join(username, hostname);
+    local attrs = { to = jid, from = hostname };
+    local message = stanza.message(attrs):tag("body"):text(text);
+    module:send(message);
+    count = count + 1;
+  end
+
+  return respond(event, Response(200, { count = count }));
+end
+
+function get_modules(event, path, body)
+  local hostname = nameprep(path.hostname);
+  local modules = modulemanager.get_modules(hostname);
+  local list = { }
+  for name, _ in pairs(modules or {}) do
+    table.insert(list, name);
+  end
+  respond(event, Response(200, { list = list, count = #list }));
+end
+
 local function ping(event, path, body)
   return respond(event, RESPONSES.pong);
 end
@@ -396,6 +406,10 @@ local ROUTES = {
 
   broadcast = {
     POST = broadcast_message;
+  };
+
+  modules = {
+    GET = get_modules;
   };
 };
 

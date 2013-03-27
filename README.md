@@ -57,6 +57,7 @@ If command complete successfully, an array of user objects is returned, with sta
 
 ```
 {
+  count: count,
   users: {
     [ { hostname, username, resource }, ... ]
   }
@@ -115,8 +116,8 @@ Send a message to a particular user on a particular host. Messages are sent from
 
 > **POST** /admin_rest/message/`hostname`/`username`
 
-*request body*
 ```
+//request body
 {
   message: "My message"
 }
@@ -130,8 +131,8 @@ Send a message to every connected user using a particular host. Messages are sen
 
 > **POST** /admin_rest/message/`hostname`
 
-*request body*
 ```
+//request body
 {
   message: "My message"
 }
@@ -139,10 +140,31 @@ Send a message to every connected user using a particular host. Messages are sen
 
 Successful response has status code `200`. In the response body is a count of the number of users who were sent the message. Example response:
 
-**response body*
 ```
+//response body
 {
   count: 100
+}
+```
+
+###list modules
+
+List loaded modules for a particular host. Successful response status code is `200`.
+
+> **GET** /admin_rpc/modules/`hostname`
+
+Sample response:
+
+```
+{
+  count: 5,
+  modules: [
+    "ping",
+    "dialback",
+    "presence",
+    "s2s",
+    "message"
+  ]
 }
 ```
 
@@ -167,6 +189,3 @@ module:reload("admin_rest", <host>)
 ```
 
 ##TODO
-
-* Proper module logging
-* More commands. Roster management perhaps, broadcast announcement
