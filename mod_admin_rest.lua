@@ -1,22 +1,16 @@
 module:depends("http");
 
-local url        = require "socket.url";
-local jid        = require "util.jid";
-local JSON       = require "util.json";
-local stanza     = require "util.stanza";
-local b64_decode = require "util.encodings".base64.decode;
-local stringprep = require "util.encodings".stringprep;
+local url    = require "socket.url";
+local jid    = require "util.jid";
+local JSON   = require "util.json";
+local stanza = require "util.stanza";
+local b64    = require "util.encodings".base64;
+local sp     = require "util.encodings".stringprep;
 
-local escape, unescape = url.escape, url.unescape;
-local jid_join, jid_prep, jid_split = jid.join, jid.prep, jid.split;
-local nodeprep, nameprep  = stringprep.nodeprep, stringprep.nameprep;
-
-local user_exists  = usermanager.user_exists;
-local create_user  = usermanager.create_user;
-local delete_user  = usermanager.delete_user;
-local set_password = usermanager.set_password;
-local load_roster  = rostermanager.load_roster;
-local get_module   = modulemanager.get_module;
+local um = usermanager;
+local rm = rostermanager;
+local mm = modulemanager;
+local hm = hostmanager;
 
 local secure    = module:get_option_boolean("admin_rest_secure", false);
 local base_path = module:get_option_string("admin_rest_base", "/admin_rest");
@@ -72,7 +66,7 @@ end
 -- With the password supplied in a JSON request body under the
 -- property `password`
 local function parse_path(path) 
-  local split = split_path(unescape(path));
+  local split = split_path(url.unescape(path));
   return {
     route     = split[2];
     hostname  = split[3];
@@ -83,7 +77,7 @@ end
 
 -- Parse request Authentication headers. Return username, password
 local function parse_auth(auth)
-  return b64_decode(auth:match("[^ ]*$") or ""):match("([^:]*):(.*)");
+  return b64.decode(auth:match("[^ ]*$") or ""):match("([^:]*):(.*)");
 end
 
 -- Convenience function for emitting events
@@ -188,7 +182,7 @@ local function get_connected_users(hostname)
 end
 
 local function get_recipient(hostname, username)
-  local jid = jid_join(username, hostname);
+  local jid = jid.join(username, hostname);
   local session = get_session(hostname, username);
   local offline = not session and user_exists(username, hostname);
   return jid, offline;
@@ -198,8 +192,8 @@ end
 -- If not connected, return the roster alone.
 -- If the user does not exist, 404.
 local function get_user(event, path, body)
-  local hostname = nameprep(path.hostname);
-  local username = nodeprep(path.resource);
+  local hostname = sp.nameprep(path.hostname);
+  local username = sp.nodeprep(path.resource);
 
   if not hostname or not username then
     return respond(event, RESPONSES.invalid_path);
@@ -218,7 +212,7 @@ local function get_user(event, path, body)
     user.sessions = session.sessions;
   else
     user.connected = false;
-    user.roster = load_roster(username, hostname);
+    user.roster = rm.load_roster(username, hostname);
   end
 
   response.user = user;
@@ -227,7 +221,7 @@ end
 
 --Return an array of connected users
 local function get_users(event, path, body)
-  local hostname = nameprep(path.hostname);
+  local hostname = sp.nameprep(path.hostname);
 
   if not hostname then
     return respond(event, RESPONSES.invalid_path);
@@ -239,8 +233,8 @@ local function get_users(event, path, body)
 end
 
 local function add_user(event, path, body)
-  local hostname = nameprep(path.hostname);
-  local username = nodeprep(path.resource);
+  local hostname = sp.nameprep(path.hostname);
+  local username = sp.nodeprep(path.resource);
   local password = body["password"];
 
   if not hostname or not username then
@@ -269,8 +263,8 @@ local function add_user(event, path, body)
 end
 
 local function remove_user(event, path, body)
-  local hostname = nameprep(path.hostname);
-  local username = nodeprep(path.resource);
+  local hostname = sp.nameprep(path.hostname);
+  local username = sp.nodeprep(path.resource);
 
   if not hostname and username then
     return respond(event, RESPONSES.invalid_path);
@@ -294,8 +288,8 @@ local function remove_user(event, path, body)
 end
 
 local function patch_user(event, path, body) 
-  local hostname = nameprep(path.hostname);
-  local username = nodeprep(path.resource);
+  local hostname = sp.nameprep(path.hostname);
+  local username = sp.nodeprep(path.resource);
   local attribute = path.attribute;
 
   local valid_path = hostname and username and attribute;
@@ -321,8 +315,8 @@ local function patch_user(event, path, body)
 end
 
 local function send_message(event, path, body)
-  local hostname = nameprep(path.hostname);
-  local username = nodeprep(path.resource);
+  local hostname = sp.nameprep(path.hostname);
+  local username = sp.nodeprep(path.resource);
   local to, offline = get_recipient(hostname, username);
 
   if not to and not offline then
@@ -333,7 +327,7 @@ local function send_message(event, path, body)
   local message = stanza.message(attrs):tag("body"):text(body.message);
 
   if offline then
-    if not get_module(hostname, "offline") then
+    if not mm.get_module(hostname, "offline") then
       return respond(event, RESPONSES.drop_message);
     else
       emit(hostname, "message/offline/handle", {
@@ -352,14 +346,14 @@ local function send_message(event, path, body)
 end
 
 local function broadcast_message(event, path, body)
-  local hostname = nameprep(path.hostname);
+  local hostname = sp.nameprep(path.hostname);
   local sessions = get_sessions(hostname);
   local count = 0;
 
   local text = body.message or "";
 
   for username, user in pairs(sessions or {}) do
-    local jid = jid_join(username, hostname);
+    local jid = jid.join(username, hostname);
     local attrs = { to = jid, from = hostname };
     local message = stanza.message(attrs):tag("body"):text(text);
     module:send(message);
@@ -370,13 +364,25 @@ local function broadcast_message(event, path, body)
 end
 
 function get_modules(event, path, body)
-  local hostname = nameprep(path.hostname);
-  local modules = modulemanager.get_modules(hostname);
+  local hostname = sp.nameprep(path.hostname);
+  local modules = mm.get_modules(hostname);
   local list = { }
   for name, _ in pairs(modules or {}) do
     table.insert(list, name);
   end
   respond(event, Response(200, { list = list, count = #list }));
+end
+
+function load_module(event, path, body)
+  local hostname = sp.nameprep(path.hostname);
+  local module = path.resource;
+  if mm.get_module(hostname, module) then
+    respond(event, Response(200, [[Reloading module "]] .. module .. [["]]));
+    mm.reload_module(hostname, module);
+  else
+    respond(event, Response(200, [[Loading module "]] .. module .. [["]]));
+    mm.load_module(hostname, module);
+  end
 end
 
 local function ping(event, path, body)
@@ -411,6 +417,10 @@ local ROUTES = {
   modules = {
     GET = get_modules;
   };
+
+  module = {
+    PUT = load_module;
+  };
 };
 
 --Reserved top-level request routes
@@ -441,14 +451,14 @@ local function handle_request(event)
   local auth = request.headers.authorization;
   local username, password = parse_auth(auth);
 
-  username = jid_prep(username);
+  username = jid.prep(username);
 
   -- Validate authentication details
   if not username or not password then 
     return respond(event, RESPONSES.invalid_auth);
   end
 
-  local user_node, user_host = jid_split(username);
+  local user_node, user_host = jid.split(username);
 
   -- Validate host
   if not hosts[user_host] then 
@@ -456,7 +466,7 @@ local function handle_request(event)
   end
 
   -- Authenticate user
-  if not usermanager.test_password(user_node, user_host, password) then
+  if not um.test_password(user_node, user_host, password) then
     return respond(event, RESPONSES.auth_failure);
   end
 
@@ -466,7 +476,7 @@ local function handle_request(event)
   local route, hostname = path.route, path.hostname;
 
   -- Restrict to admin
-  if not usermanager.is_admin(username, hostname) then
+  if not um.is_admin(username, hostname) then
     return respond(event, RESPONSES.unauthorized);
   end
 
