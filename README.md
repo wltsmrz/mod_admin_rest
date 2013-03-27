@@ -20,7 +20,7 @@ Your admin_rest HTTP server is now listening on Prosody's HTTP service port (Def
 
 ##Issuing commands
 
-All requests must contain Basic authentication for a user who has administrative privileges. Additionally, some commands may require request bodies. Request paths have the following general structure:
+All requests must contain Basic authentication for a user who has administrative privileges. Requests must contain `Content-Type` and `Content-Length` headers. Additionally, some `admin_rest` commands may require request bodies. Request paths have the following general structure:
 
 > /admin_rest/`route`/`hostname`/`resource`/`attribute`
 
@@ -43,8 +43,22 @@ If the user does not exist, response status code is `404`. Otherwise `200`. If a
 ```
 {
   user: {
-    session: { ... },
+    sessions: { ... },
     roster: { ... }
+  }
+}
+```
+
+###get connected users
+
+If command complete successfully, an array of user objects is returned, with status code `2001`. If no users are connected, an empty object is returned.
+
+> **GET** /admin_rest/users/`hostname`/
+
+```
+{
+  users: {
+    [ { hostname, username, resource }, ... ]
   }
 }
 ```

@@ -11,21 +11,27 @@ local escape, unescape = url.escape, url.unescape;
 local jid_join, jid_prep, jid_split = jid.join, jid.prep, jid.split;
 local nodeprep, nameprep  = stringprep.nodeprep, stringprep.nameprep;
 
+local user_exists  = usermanager.user_exists;
+local create_user  = usermanager.create_user;
+local delete_user  = usermanager.delete_user;
+local set_password = usermanager.set_password;
+local load_roster  = rostermanager.load_roster;
+local get_module   = modulemanager.get_module;
+
 local secure    = module:get_option_boolean("admin_rest_secure", false);
 local base_path = module:get_option_string("admin_rest_base", "/admin_rest");
 local whitelist = module:get_option_array("admin_rest_whitelist", nil);
 
--- Convert whitelist into a whiteset for efficient lookup
-if whitelist then
-  local length = #whitelist;
-  if length == 0 then
-    whitelist = nil 
-  else
-    local whiteset = {};
-    for i=1, #whitelist do whiteset[whitelist[i]] = true end
-    whitelist = whiteset;
-  end
+local function to_set(list)
+  local l = #list;
+  if l == 0 then return nil end
+  local set = { };
+  for i=1, l do set[list[i]] = true end
+  return set;
 end
+
+-- Convert whitelist into a whiteset for efficient lookup
+if whitelist then whitelist = to_set(whitelist) end
 
 local function split_path(path)
   local result = {}; 
@@ -83,8 +89,9 @@ end
 -- Convenience function for emitting events
 local function emit(host, event, data) 
   local host = hosts[host];
-  if not host or not host.events then return nil; end
-  return host.events.fire_event(event, data);
+  if host and host.events then
+    host.events.fire_event(event, data);
+  end
 end
 
 -- Generate a Response object of the form:
@@ -149,43 +156,94 @@ local function respond(event, message, headers)
 	response:send(message.message);
 end
 
--- Return a user's roster & session data if he or she
--- is online. Otherwise return the roster along with
--- offline=true. If the user does not exist, 404.
+local function get_host(hostname)
+  return hosts[hostname];
+end
+
+local function get_sessions(hostname)
+  local host = get_host(hostname);
+  return host and host.sessions;
+end
+
+local function get_session(hostname, username)
+  local sessions = get_sessions(hostname);
+  return sessions and sessions[username];
+end
+
+local function get_connected_users(hostname) 
+  local sessions = get_sessions(hostname) or { };
+  local users = { };
+
+  for username, user in pairs(sessions) do
+    for resource, session in pairs(user.sessions or {}) do
+      table.insert(users, { 
+        username = username,
+        hostname = hostname,
+        resource = resource 
+      });
+    end
+  end
+
+  return users;
+end
+
+local function get_jid(hostname, username)
+  -- User does not exist
+  if not user_exists(username, hostname) then return nil end
+
+  local session = get_session(hostname, username);
+
+  -- User is offline
+  if not session then return nil, true end
+
+  -- User is online, grab a session
+  for resource, _ in pairs(session.sessions) do 
+    return jid_join(username, hostname, resource), false;
+  end
+end
+
+-- Return a user's roster & session data if connected.
+-- If not connected, return the roster alone.
+-- If the user does not exist, 404.
 local function get_user(event, path, body)
   local hostname = nameprep(path.hostname);
   local username = nodeprep(path.resource);
 
-  if not username or not hostname then
+  if not hostname or not username then
     return respond(event, RESPONSES.invalid_path);
   end
 
-  if not usermanager.user_exists(username, hostname) then
+  if not user_exists(username, hostname) then
     return respond(event, RESPONSES.nonexist_user);
   end
 
-  local user;
-
-  local ok, error = pcall(function()
-    user = hosts[hostname].sessions[username];
-  end);
-
-  if not ok or error then
-    respond(event, RESPONSES.internal_error);
-  else if user then
-    respond(event, Response(200, { user = user }))
-  else 
-    local roster = rostermanager.load_roster(username, hostname);
-    if not roster then 
-      respond(event, RESPONSES.internal_error);
-    else
-      local response = Response(200, { 
-        user = { offline = true, roster = roster } 
-      });
-      respond(event, response);
-    end
+  local response = { };
+  local user = { };
+  local session = get_session(hostname, username);
+  if session then
+    user.connected = true;
+    user.roster = session.roster;
+    user.sessions = session.sessions;
+  else
+    user.connected = false;
+    user.roster = load_roster(username, hostname);
   end
+
+  response.user = user;
+  respond(event, Response(200, response));
 end
+
+--Return an array of connected users
+local function get_users(event, path, body)
+  local hostname = nameprep(path.hostname);
+
+  if not hostname then
+    return respond(event, RESPONSES.invalid_path);
+  end
+
+  local users = get_connected_users(hostname);
+
+  respond(event, Response(200, { users = users }));
 end
 
 local function add_user(event, path, body)
@@ -201,11 +259,11 @@ local function add_user(event, path, body)
     return respond(event, RESPONSES.invalid_body);
   end
 
-  if usermanager.user_exists(username, hostname) then
+  if user_exists(username, hostname) then
     return respond(event, RESPONSES.user_exists);
   end
 
-  if not usermanager.create_user(username, password, hostname) then
+  if not create_user(username, password, hostname) then
     return respond(event, RESPONSES.internal_error);
   end
 
@@ -226,11 +284,11 @@ local function remove_user(event, path, body)
     return respond(event, RESPONSES.invalid_path);
   end
 
-  if not username or not usermanager.user_exists(username, hostname) then
+  if not username or not user_exists(username, hostname) then
     return respond(event, RESPONSES.invalid_username);
   end
 
-  if not usermanager.delete_user(username, hostname) then
+  if not delete_user(username, hostname) then
     respond(event, RESPONSES.internal_error);
   else
     respond(event, RESPONSES.user_deleted);
@@ -248,11 +306,12 @@ local function patch_user(event, path, body)
   local username = nodeprep(path.resource);
   local attribute = path.attribute;
 
-  if not hostname or not username or not attribute then
+  local valid_path = hostname and username and attribute;
+  if not valid_path then
     return respond(event, RESPONSES.invalid_path);
   end
 
-  if not username or not usermanager.user_exists(username, hostname) then
+  if not username or not user_exists(username, hostname) then
     return respond(event, RESPONSES.invalid_username);
   end
 
@@ -261,37 +320,12 @@ local function patch_user(event, path, body)
     if not password then
       return respond(event, RESPONSES.invalid_body);
     end
-    if not usermanager.set_password(username, password, hostname) then
+    if not set_password(username, password, hostname) then
       return respond(event, RESPONSES.internal_error);
     end
   end
 
   respond(event, RESPONSES.user_updated);
-end
-
-local function ping(event, path, body)
-  return respond(event, RESPONSES.pong);
-end
-
-local function get_jid(hostname, username)
-  if not usermanager.user_exists(username, hostname) then 
-    return nil; 
-  end
-
-  local session = nil;
-  local ok, error = pcall(function()
-    session = hosts[hostname].sessions[username];
-  end);
-
-  if not ok or error then return nil; end
-
-  -- User is offline
-  if not session then return nil, true; end
-
-  -- User is online, grab a session
-  for resource, _ in pairs(session.sessions) do 
-    return jid_join(username, hostname, resource), false;
-  end
 end
 
 local function send_message(event, path, body)
@@ -307,7 +341,7 @@ local function send_message(event, path, body)
   local message = stanza.message(attrs):tag("body"):text(body.message or "");
 
   if offline then
-    if not modulemanager.get_module(hostname, "offline") then
+    if not get_module(hostname, "offline") then
       return respond(event, RESPONSES.drop_message);
     else
       emit(hostname, "message/offline/handle", {
@@ -325,25 +359,39 @@ local function send_message(event, path, body)
   respond(event, RESPONSES.sent_message);
 end
 
+local function ping(event, path, body)
+  return respond(event, Response(200, "pong"));
+end
+
+--Routes and suitable request methods
 local ROUTES = {
   ping = {
     GET = ping;
   };
+
   user = {
     GET    = get_user;
     POST   = add_user;
     DELETE = remove_user;
     PATCH  = patch_user;
   };
+
+  users = {
+    GET = get_users;
+  };
+
   message = {
     POST = send_message;
   };
 };
 
-local RESERVED = { 
-  ping = true;
-};
+--Reserved top-level request routes
+local RESERVED = to_set({ 
+  [[ping]]
+});
 
+--Entry point for incoming requests. 
+--Authenticate admin and route request.
 local function handle_request(event)
   local request = event.request;
 
