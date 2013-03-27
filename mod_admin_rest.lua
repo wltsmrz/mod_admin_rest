@@ -170,6 +170,24 @@ local function get_session(hostname, username)
   return sessions and sessions[username];
 end
 
+local function broadcast_message(event, path, body)
+  local hostname = nameprep(path.hostname);
+  local sessions = get_sessions(hostname);
+  local count = 0;
+
+  local text = body.message or "";
+
+  for username, user in pairs(sessions or {}) do
+    local jid = jid_join(username, hostname);
+    local attrs = { to = jid, from = hostname };
+    local message = stanza.message(attrs):tag("body"):text(text);
+    module:send(message);
+    count = count + 1;
+  end
+
+  return respond(event, Response(200, { count = count }));
+end
+
 local function get_connected_users(hostname) 
   local sessions = get_sessions(hostname) or { };
   local users = { };
@@ -187,19 +205,11 @@ local function get_connected_users(hostname)
   return users;
 end
 
-local function get_jid(hostname, username)
-  -- User does not exist
-  if not user_exists(username, hostname) then return nil end
-
+local function get_recipient(hostname, username)
+  local jid = jid_join(username, hostname);
   local session = get_session(hostname, username);
-
-  -- User is offline
-  if not session then return nil, true end
-
-  -- User is online, grab a session
-  for resource, _ in pairs(session.sessions) do 
-    return jid_join(username, hostname, resource), false;
-  end
+  local offline = not session and user_exists(username, hostname);
+  return jid, offline;
 end
 
 -- Return a user's roster & session data if connected.
@@ -331,14 +341,14 @@ end
 local function send_message(event, path, body)
   local hostname = nameprep(path.hostname);
   local username = nodeprep(path.resource);
-  local to, offline = get_jid(hostname, username);
+  local to, offline = get_recipient(hostname, username);
 
   if not to and not offline then
     return respond(event, RESPONSES.invalid_user);
   end
 
-  local attrs = { to = to or jid_join(username, hostname), from = hostname };
-  local message = stanza.message(attrs):tag("body"):text(body.message or "");
+  local attrs = { to = to, from = hostname };
+  local message = stanza.message(attrs):tag("body"):text(body.message);
 
   if offline then
     if not get_module(hostname, "offline") then
@@ -360,7 +370,7 @@ local function send_message(event, path, body)
 end
 
 local function ping(event, path, body)
-  return respond(event, Response(200, "pong"));
+  return respond(event, RESPONSES.pong);
 end
 
 --Routes and suitable request methods
@@ -382,6 +392,10 @@ local ROUTES = {
 
   message = {
     POST = send_message;
+  };
+
+  broadcast = {
+    POST = broadcast_message;
   };
 };
 

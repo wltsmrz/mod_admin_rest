@@ -111,10 +111,11 @@ If a user was updated successfully, response status code is `200`. If a user doe
 
 ###send message
 
-Send a message to a particular user on a particular host. Broadcasts are not yet supported. Messages are sent from the hostname. Include the content of your message in a JSON-encoded request body.
+Send a message to a particular user on a particular host. Messages are sent from the hostname. Include the content of your message in a JSON-encoded request body.
 
 > **POST** /admin_rest/message/`hostname`/`username`
 
+*request body*
 ```
 {
   message: "My message"
@@ -122,6 +123,28 @@ Send a message to a particular user on a particular host. Broadcasts are not yet
 ```
 
 If message was sent successfully, response status code is `200`. If message was sent to offline queue (to be re-sent when the user becomes online), response status code is `201`. If the message cannot be delivered, response status code is `501`.
+
+###broadcast message
+
+Send a message to every connected user using a particular host. Messages are sent from the hostname. Include the content of your message in a JSON-encoded request body. 
+
+> **POST** /admin_rest/message/`hostname`
+
+*request body*
+```
+{
+  message: "My message"
+}
+```
+
+Successful response has status code `200`. In the response body is a count of the number of users who were sent the message. Example response:
+
+**response body*
+```
+{
+  count: 100
+}
+```
 
 ##Options
 
