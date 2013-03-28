@@ -110,7 +110,6 @@ local RESPONSES = {
   pong            = Response(200, "pong");
 };
 
--- Convenience function for responding to HTTP requests
 local function respond(event, message, headers)
 	local response = event.response;
 
@@ -118,7 +117,7 @@ local function respond(event, message, headers)
     for header, data in pairs(headers) do 
       response.headers[header] = data;
     end
-  end
+  end;
 
 	response.headers.content_type = "application/json";
 	response.status_code = message.status_code;
@@ -175,7 +174,8 @@ local function get_user(event, path, body)
   end
 
   if not um.user_exists(username, hostname) then
-    return respond(event, Response(404, "User '" .. username .. "' does not exist"));
+    local joined = jid.join(username, hostname)
+    return respond(event, Response(404, "User does not exist: " .. joined));
   end
 
   local response = { };
@@ -194,7 +194,6 @@ local function get_user(event, path, body)
   respond(event, Response(200, response));
 end
 
---Return an array of connected users
 local function get_users(event, path, body)
   local hostname = sp.nameprep(path.hostname);
 
@@ -220,21 +219,25 @@ local function add_user(event, path, body)
     return respond(event, RESPONSES.invalid_body);
   end
 
+  local joined = jid.join(username, hostname);
+
   if um.user_exists(username, hostname) then
-    return respond(event, Response(409, "User '" .. username .. "' already exists"));
+    return respond(event, Response(409, "User already exists: " .. joined));
   end
 
   if not um.create_user(username, password, hostname) then
     return respond(event, RESPONSES.internal_error);
   end
 
-  respond(event, Response(201, "User '" .. username .. "' created"));
+  respond(event, Response(201, "User created: " .. joined));
 
   emit(hostname, "user-registered", {
     username = username;
     hostname = hostname;
     source   = "mod_admin_rest";
   })
+
+  module:log("info", "Registered user: " .. joined);
 end
 
 local function remove_user(event, path, body)
@@ -245,21 +248,25 @@ local function remove_user(event, path, body)
     return respond(event, RESPONSES.invalid_path);
   end
 
+  local joined = jid.join(username, hostname);
+
   if not um.user_exists(username, hostname) then
-    return respond(event, Response(404, "User '" .. username "' does not exist"));
+    return respond(event, Response(404, "User does not exist: " .. joined));
   end
 
   if not um.delete_user(username, hostname) then
-    respond(event, RESPONSES.internal_error);
-  else
-    respond(event, Response(200, "User '" .. username .. "' deleted"));
+    return respond(event, RESPONSES.internal_error);
   end
+
+  respond(event, Response(200, "User deleted: " .. joined));
 
   emit(hostname, "user-deregistered", {
     username = username;
     hostname = hostname;
     source = "mod_admin_rest";
   });
+
+  module:log("info", "Deregistered user: " .. jioned);
 end
 
 local function patch_user(event, path, body) 
@@ -271,8 +278,10 @@ local function patch_user(event, path, body)
     return respond(event, RESPONSES.invalid_path);
   end
 
+  local joined = jid.join(username, hostname);
+
   if not um.user_exists(username, hostname) then
-    return respond(event, Response(404, "User '" .. username .."' does not exist"));
+    return respond(event, Response(404, "User does not exist: " .. joined));
   end
 
   if attribute == "password" then
@@ -285,7 +294,9 @@ local function patch_user(event, path, body)
     end
   end
 
-  respond(event, Response(200, "User '" .. username .. "' updated"));
+  respond(event, Response(200, "User updated: " .. joined));
+
+  module:log("info", "User modified: " .. jioned);
 end
 
 local function send_message(event, path, body)
@@ -316,7 +327,9 @@ local function send_message(event, path, body)
     return respond(event, RESPONSES.internal_ERROR);
   end
 
-  respond(event, RESPONSES.sent_message);
+  respond(event, Response(200, "Sent message to user: " .. to));
+
+  module:log("info", "Message sent to user: " .. to);
 end
 
 local function broadcast_message(event, path, body)
@@ -335,6 +348,8 @@ local function broadcast_message(event, path, body)
   end
 
   respond(event, Response(200, { count = count }));
+
+  module:log("info", "Message broadcasted to users: " .. count);
 end
 
 function get_module(event, path, body)
@@ -368,58 +383,73 @@ function load_module(event, path, body)
   if mm.get_module(hostname, modulename) then fn = "reload" end
 
   if not mm[fn](hostname, modulename) then
-    respond(event, RESPONSES.internal_error);
-  else
-    respond(event, Response(200, "Loaded module '" .. modulename .. "'"));
+    return respond(event, RESPONSES.internal_error);
   end
+
+  respond(event, Response(200, "Loaded module: " .. modulename));
+
+  module:log("info", "Module loaded: " .. modulename);
 end
 
 function unload_module(event, path, body)
   local hostname = sp.nameprep(path.hostname);
   local modulename = path.resource;
-  if mm.get_module(hostname, modulename) then
-    mm.unload(hostname, modulename);
-    respond(event, Response(200, "Module '" .. modulename .. "' unloaded"));
-  else
-    respond(event, Response(404, "Module '" .. modulename .. "' is not loaded"));
-  end
-end
 
-local function ping(event, path, body)
-  return respond(event, RESPONSES.pong);
+  if not mm.get_module(hostname, modulename) then
+    return respond(event, Response(404, "Module is not loaded:" .. modulename));
+  end
+
+  mm.unload(hostname, modulename);
+  respond(event, Response(200, "Module unloaded: " .. modulename));
+
+  module:log("info", "Module unloaded: " .. modulename)
 end
 
 local function get_whitelist(event, path, body)
   local list = { };
+
   if whitelist then
     for ip, _ in pairs(whitelist) do
       table.insert(list, ip);
     end
   end
+
   respond(event, Response(200, { whitelist = list, count = #list }));
 end
 
 local function add_whitelisted(event, path, body)
   local ip = path.resource;
   if not whitelist then whitelist = { } end
+
   whitelist[ip] = true;
-  respond(event, Response(200, "Added IP '" .. ip .. "' to whitelist"));
+
+  respond(event, Response(200, "Added IP to whitelist: " .. ip));
+
+  module:log("warn", "IP added to whitelist: " .. ip);
 end
 
 local function remove_whitelisted(event, path, body)
   local ip = path.resource;
-  if whitelist and whitelist[ip] then
-    local new_list = { };
-    for whitelisted, _ in pairs(whitelist) do
-      if whitelisted ~= ip then
-        new_list[whitelisted] = true;
-      end
-    end
-    whitelist = new_list;
-    respond(event, Response(200, "Removed IP '" .. ip .. "' from whitelist"));
-  else
-    respond(event, Response(404, "IP '" .. ip .. "' is not whitelisted"));
+
+  if not whitelist or not whitelist[ip] then
+    return respond(event, Response(404, "IP is not whitelisted: " .. ip));
   end
+
+  local new_list = { };
+  for whitelisted, _ in pairs(whitelist) do
+    if whitelisted ~= ip then
+      new_list[whitelisted] = true;
+    end
+  end
+  whitelist = new_list;
+
+  respond(event, Response(200, "Removed IP '" .. ip .. "' from whitelist"));
+
+  module:log("warn", "IP removed from whitelist: " .. ip)
+end
+
+local function ping(event, path, body)
+  return respond(event, RESPONSES.pong);
 end
 
 --Routes and suitable request methods
