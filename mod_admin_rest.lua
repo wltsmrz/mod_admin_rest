@@ -289,14 +289,14 @@ local function patch_user(event, path, body)
     if not password then
       return respond(event, RESPONSES.invalid_body);
     end
-    if not set_password(username, password, hostname) then
+    if not um.set_password(username, password, hostname) then
       return respond(event, RESPONSES.internal_error);
     end
   end
 
   respond(event, Response(200, "User updated: " .. joined));
 
-  module:log("info", "User modified: " .. jioned);
+  module:log("info", "User modified: " .. joined);
 end
 
 local function send_message(event, path, body)
