@@ -20,7 +20,7 @@ Compatible with `v0.9`. Not tested and likely incompatible with previous version
 
 This module depends on Prosody's `http` module, so it inherits the `http` module's configuration. By default, http server listens on port `5280`. All requests must contain Basic authentication for a user who has administrative privileges. Requests must contain `Content-Type` and `Content-Length` headers. Additionally, some `admin_rest` commands may require request bodies. Request paths have the following general structure:
 
-> /admin_rest/`route`/`resource`/`attribute`
+> /admin_rest/`operation`/`resource`/`attribute`
 
 Responses are JSON-encoded objects with a `result` property. They have the form:
 
