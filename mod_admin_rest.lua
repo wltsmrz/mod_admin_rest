@@ -116,21 +116,26 @@ local RESPONSES = {
   invalid_auth    = Response(400, "Invalid authentication details");
   auth_failure    = Response(401, "Authentication failure");
   unauthorized    = Response(401, "User must be an administrator");
+
   decode_failure  = Response(400, "Request body is not valid JSON");
-  nonexist_user   = Response(404, "User does not exist");
+
   invalid_path    = Response(404, "Invalid request path");
   invalid_method  = Response(405, "Invalid request method");
   invalid_body    = Response(400, "Body does not exist or is malformed");
   invalid_host    = Response(404, "Host does not exist or is malformed");
   invalid_user    = Response(404, "User does not exist or is malformed");
+
+  nonexist_user   = Response(404, "User does not exist");
   user_unconnect  = Response(406, "User is not connected");
   user_exists     = Response(409, "User already exists");
   user_created    = Response(201, "User created");
   user_updated    = Response(200, "User updated");
   user_deleted    = Response(200, "User deleted");
+
   sent_message    = Response(200, "Sent message");
   offline_message = Response(202, "Message sent to offline queue");
   drop_message    = Response(501, "Message dropped per configuration");
+
   internal_error  = Response(500, "Internal server error");
   pong            = Response(200, "pong");
 };
@@ -199,8 +204,8 @@ local function get_user(event, path, body)
     return respond(event, RESPONSES.invalid_path);
   end
 
-  if not user_exists(username, hostname) then
-    return respond(event, RESPONSES.nonexist_user);
+  if not um.user_exists(username, hostname) then
+    return respond(event, Response(404, "User '" .. username .. "' does not exist"));
   end
 
   local response = { };
@@ -246,7 +251,7 @@ local function add_user(event, path, body)
   end
 
   if user_exists(username, hostname) then
-    return respond(event, RESPONSES.user_exists);
+    return respond(event, Response(409, "User '" .. username .. "' already exists"));
   end
 
   if not create_user(username, password, hostname) then
@@ -266,12 +271,12 @@ local function remove_user(event, path, body)
   local hostname = sp.nameprep(path.hostname);
   local username = sp.nodeprep(path.resource);
 
-  if not hostname and username then
+  if not hostname or not username then
     return respond(event, RESPONSES.invalid_path);
   end
 
-  if not username or not user_exists(username, hostname) then
-    return respond(event, RESPONSES.invalid_username);
+  if not user_exists(username, hostname) then
+    return respond(event, Response(404, "User '" .. username "' does not exist"));
   end
 
   if not delete_user(username, hostname) then
@@ -297,8 +302,8 @@ local function patch_user(event, path, body)
     return respond(event, RESPONSES.invalid_path);
   end
 
-  if not username or not user_exists(username, hostname) then
-    return respond(event, RESPONSES.invalid_username);
+  if not user_exists(username, hostname) then
+    return respond(event, Response(404, "User '" .. username .."' does not exist"));
   end
 
   if attribute == "password" then
@@ -370,18 +375,31 @@ function get_modules(event, path, body)
   for name, _ in pairs(modules or {}) do
     table.insert(list, name);
   end
-  respond(event, Response(200, { list = list, count = #list }));
+  respond(event, Response(200, { modules = list, count = #list }));
 end
 
 function load_module(event, path, body)
   local hostname = sp.nameprep(path.hostname);
   local module = path.resource;
-  if mm.get_module(hostname, module) then
-    respond(event, Response(200, [[Reloading module "]] .. module .. [["]]));
-    mm.reload_module(hostname, module);
+  local fn = "load";
+
+  if mm.get_module(hostname, module) then fn = "reload" end
+
+  if not mm[fn](hostname, module) then
+    respond(event, RESPONSES.internal_error);
   else
-    respond(event, Response(200, [[Loading module "]] .. module .. [["]]));
-    mm.load_module(hostname, module);
+    respond(event, Response(200, "Loaded module '" .. module .. "'"));
+  end
+end
+
+function unload_module(event, path, body)
+  local hostname = sp.nameprep(path.hostname);
+  local module = path.resource;
+  if mm.get_module(hostname, module) then
+    mm.unload(hostname, module);
+    respond(event, Response(200, "Module '" .. module .. "' unloaded"));
+  else
+    respond(event, Response(404, "Module '" .. module .. "' is not loaded"))
   end
 end
 
@@ -419,7 +437,8 @@ local ROUTES = {
   };
 
   module = {
-    PUT = load_module;
+    PUT    = load_module;
+    DELETE = unload_module;
   };
 };
 
@@ -518,6 +537,7 @@ module:provides("http", {
   route = {
     ["GET /*"]    = handle_request;
     ["POST /*"]   = handle_request;
+    ["PUT /*"]    = handle_request;
     ["DELETE /*"] = handle_request;
     ["PATCH /*"]  = handle_request;
   };
