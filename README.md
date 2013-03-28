@@ -4,7 +4,7 @@ A RESTful admin interface to [Prosody](http://prosody.im/) XMPP server.
 
 ###Why
 
-There are a few ways to administer Prosody; by using either the `mod_admin_telnet`, `mod_admin_adhoc`, or via `prosodyctl`. Each has an independent purpose but there is considerable functional overlap. `mod_admin_rest` seeks to enable a more programmatic interface to Prosody commands that exist in the stock admin modules, and some commands that don't.
+There are a few ways to administer Prosody; by using either the `mod_admin_telnet`, `mod_admin_adhoc`, or via `prosodyctl`. mod_admin_rest seeks to enable a more programmatic interface to Prosody commands that exist in the stock admin modules, and some commands that don't.
 
 ###Note
 
@@ -16,11 +16,9 @@ Compatible with `v0.9`. Not tested and likely incompatible with previous version
 2. Add `admin_rest` to `modules_enabled` list of your `prosody.cfg.lua`
 3. Start or restart Prosody
 
-Your admin_rest HTTP server is now listening on Prosody's HTTP service port (Default `5280`)
-
 ##Issuing commands
 
-All requests must contain Basic authentication for a user who has administrative privileges. Requests must contain `Content-Type` and `Content-Length` headers. Additionally, some `admin_rest` commands may require request bodies. Request paths have the following general structure:
+This module depends on Prosody's `http` module, so it inherits the `http` module's configuration. By default, http server listens on port `5280`. All requests must contain Basic authentication for a user who has administrative privileges. Requests must contain `Content-Type` and `Content-Length` headers. Additionally, some `admin_rest` commands may require request bodies. Request paths have the following general structure:
 
 > /admin_rest/`route`/`resource`/`attribute`
 
