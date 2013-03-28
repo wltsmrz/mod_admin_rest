@@ -363,14 +363,7 @@ function get_module(event, path, body)
     return respond(event, RESPONSES.invalid_path);
   end
 
-  local loaded;
-
-  if mm.get_module(hostname, modulename) then
-    loaded = true;
-  else
-    loaded = false;
-  end
-
+  local loaded = (mm.get_module(hostname, modulename) and true) or false;
   local result = { module = modulename, loaded = loaded };
   respond(event, Response(200, result));
 end
@@ -491,9 +484,7 @@ local ROUTES = {
 
 
 --Reserved top-level request routes
-local RESERVED = to_set({ 
-  [[ping]]
-});
+local RESERVED = to_set({ "admin" });
 
 --Entry point for incoming requests. 
 --Authenticate admin and route request.
