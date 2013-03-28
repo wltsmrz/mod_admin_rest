@@ -574,7 +574,7 @@ local function handle_request(event)
   local body = { };
 
   -- Parse JSON request body
-  if request.body and #request.body then
+  if request.body and #request.body > 0 then
     if not pcall(function() body = JSON.decode(request.body) end) then
       return respond(event, RESPONSES.decode_failure);
     end
