@@ -571,10 +571,10 @@ local function handle_request(event)
     return respond(event, RESPONSES.invalid_method);
   end
 
-  local body = {};
+  local body = { };
 
   -- Parse JSON request body
-  if request.body then
+  if request.body and #request.body then
     if not pcall(function() body = JSON.decode(request.body) end) then
       return respond(event, RESPONSES.decode_failure);
     end
