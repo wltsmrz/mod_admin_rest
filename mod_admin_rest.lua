@@ -125,13 +125,6 @@ local RESPONSES = {
   invalid_host    = Response(404, "Host does not exist or is malformed");
   invalid_user    = Response(404, "User does not exist or is malformed");
 
-  nonexist_user   = Response(404, "User does not exist");
-  user_unconnect  = Response(406, "User is not connected");
-  user_exists     = Response(409, "User already exists");
-  user_created    = Response(201, "User created");
-  user_updated    = Response(200, "User updated");
-  user_deleted    = Response(200, "User deleted");
-
   sent_message    = Response(200, "Sent message");
   offline_message = Response(202, "Message sent to offline queue");
   drop_message    = Response(501, "Message dropped per configuration");
@@ -250,15 +243,15 @@ local function add_user(event, path, body)
     return respond(event, RESPONSES.invalid_body);
   end
 
-  if user_exists(username, hostname) then
+  if um.user_exists(username, hostname) then
     return respond(event, Response(409, "User '" .. username .. "' already exists"));
   end
 
-  if not create_user(username, password, hostname) then
+  if not um.create_user(username, password, hostname) then
     return respond(event, RESPONSES.internal_error);
   end
 
-  respond(event, RESPONSES.user_created);
+  respond(event, Response(201, "User '" .. username .. "' created"));
 
   emit(hostname, "user-registered", {
     username = username;
@@ -275,14 +268,14 @@ local function remove_user(event, path, body)
     return respond(event, RESPONSES.invalid_path);
   end
 
-  if not user_exists(username, hostname) then
+  if not um.user_exists(username, hostname) then
     return respond(event, Response(404, "User '" .. username "' does not exist"));
   end
 
-  if not delete_user(username, hostname) then
+  if not um.delete_user(username, hostname) then
     respond(event, RESPONSES.internal_error);
   else
-    respond(event, RESPONSES.user_deleted);
+    respond(event, Response(200, "User '" .. username .. "' deleted"));
   end
 
   emit(hostname, "user-deregistered", {
@@ -297,12 +290,11 @@ local function patch_user(event, path, body)
   local username = sp.nodeprep(path.resource);
   local attribute = path.attribute;
 
-  local valid_path = hostname and username and attribute;
-  if not valid_path then
+  if not (hostname and username and attribute)  then
     return respond(event, RESPONSES.invalid_path);
   end
 
-  if not user_exists(username, hostname) then
+  if not um.user_exists(username, hostname) then
     return respond(event, Response(404, "User '" .. username .."' does not exist"));
   end
 
@@ -316,7 +308,7 @@ local function patch_user(event, path, body)
     end
   end
 
-  respond(event, RESPONSES.user_updated);
+  respond(event, Response(200, "User '" .. username .. "' updated"));
 end
 
 local function send_message(event, path, body)
