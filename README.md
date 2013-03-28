@@ -18,7 +18,7 @@ Compatible with `v0.9`. Not tested and likely incompatible with previous version
 
 ##Issuing commands
 
-This module depends on Prosody's `http` module, so it inherits the `http` module's configuration. By default, http server listens on port `5280`. All requests must contain Basic authentication for a user who has administrative privileges. Requests must contain `Content-Type` and `Content-Length` headers. Additionally, some `admin_rest` commands may require request bodies. Request paths have the following general structure:
+This module depends on Prosody's `http` module, so it inherits the `http` module's configuration. By default, http server listens on port `5280`. All requests must contain Basic authentication for a user who has administrative privileges. Requests must contain `Content-Type` and `Content-Length` headers. Additionally, some `admin_rest` commands may require request bodies. `mod_admin_rest` attempts to make appropriate use of HTTP status codes and request methods. Request paths have the following general structure:
 
 > /admin_rest/`operation`/`resource`/`attribute`
 
@@ -26,11 +26,11 @@ Responses are JSON-encoded objects with a `result` property. They have the form:
 
 > `{ result: { ... } }`
 
-`mod_admin_rest` makes appropriate use of HTTP status codes and request methods.
-
 ##Commands
 
 A handful of useful commands are supported. More will come in the future.
+
+---------------------------------------
 
 ###get user
 
@@ -47,6 +47,8 @@ If the user does not exist, response status code is `404`. Otherwise `200`. If a
 }
 ```
 
+---------------------------------------
+
 ###get connected users
 
 If command complete successfully, an array of user objects is returned, with status code `2001`. If no users are connected, an empty object is returned.
@@ -62,6 +64,8 @@ If command complete successfully, an array of user objects is returned, with sta
 }
 ```
 
+---------------------------------------
+
 ###add user
 
 Add a user. If the user exists, response status code is `409`. If a user is successfully created, `201`.
@@ -76,11 +80,15 @@ Include `password` in the request body
 }
 ```
 
+---------------------------------------
+
 ###remove user
 
 Removes a user. If the user does not exist, response status code is `404`. If a user is successfully removed, `200`.
 
 > **DELETE** /admin_rest/user/`username`
+
+---------------------------------------
 
 ###change user attributes
 
@@ -108,6 +116,8 @@ With request body:
 
 If a user was updated successfully, response status code is `200`. If a user does not exist, response status code is `404`.
 
+---------------------------------------
+
 ###send message
 
 Send a message to a particular user on a particular host. Messages are sent from the hostname. Include the content of your message in a JSON-encoded request body.
@@ -122,6 +132,8 @@ Send a message to a particular user on a particular host. Messages are sent from
 ```
 
 If message was sent successfully, response status code is `200`. If message was sent to offline queue (to be re-sent when the user becomes online), response status code is `201`. If the message cannot be delivered, response status code is `501`.
+
+---------------------------------------
 
 ###broadcast message
 
@@ -145,6 +157,8 @@ Successful response has status code `200`. In the response body is a count of th
 }
 ```
 
+---------------------------------------
+
 ###get module
 
 Returns the name and loaded state of provided module. Successful response status code is `200`.
@@ -158,6 +172,8 @@ Returns the name and loaded state of provided module. Successful response status
   loaded: true
 }
 ```
+
+---------------------------------------
 
 ###list modules
 
@@ -180,11 +196,15 @@ Sample response:
 }
 ```
 
+---------------------------------------
+
 ###load module
 
 Load or reload a module. Successful response status code is `200`.
 
 > **PUT** /admin_rest/module/`modulename`
+
+---------------------------------------
 
 ###unload module
 
@@ -192,6 +212,7 @@ Unload a module. Successful response status code is `200`. If a module is not lo
 
 > **DELETE** /admin_rest/module/`modulename`
 
+---------------------------------------
 
 ###get whitelist
 
@@ -207,17 +228,23 @@ Returns array of whitelisted as per `admin_rest_whitelist` [configuration](https
 }
 ```
 
+---------------------------------------
+
 ###add to whitelist
 
 Add a provided IP to whitelist.
 
 > **PUT** /admin_rest/whitelist/`ip`
 
+---------------------------------------
+
 ###remove from whitelist
 
 Remove a provided IP from whitelist.
 
 > **DELETE** /admin_rest/whitelist/`ip`
+
+---------------------------------------
 
 ##Options
 
