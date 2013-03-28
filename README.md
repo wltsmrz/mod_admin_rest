@@ -151,7 +151,7 @@ Successful response has status code `200`. In the response body is a count of th
 
 List loaded modules for a particular host. Successful response status code is `200`.
 
-> **GET** /admin_rpc/modules/`hostname`
+> **GET** /admin_rest/modules/`hostname`
 
 Sample response:
 
@@ -167,6 +167,19 @@ Sample response:
   ]
 }
 ```
+
+###load module
+
+Load or reload a module. Successful response status code is `200`.
+
+> **PUT** /admin_rest/module/`hostname`/`modulename`
+
+###unload module
+
+Unload a module. Successful response status code is `200`. If a module is not loaded, `404`.
+
+> **DELETE** /admin_rest/module/`hostname`/`modulename`
+
 
 ##Options
 
