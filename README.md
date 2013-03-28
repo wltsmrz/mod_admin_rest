@@ -198,7 +198,11 @@ Base path. Default paths begin with `/admin_rest`.
 List of IP addresses to whitelist. Only these IP addresses will be allowed to issue commands over HTTP. If you modify the whitelist while Prosody is running, you will need to reload `admin_rest` module. One way you can do this is by connecting to `admin_telnet` service which runs by default on port `5582`. Then issue the command:
 
 ```
-module:reload("admin_rest", <host>)
+$ echo "module:reload('admin_rest', <host>)" | nc localhost 5582
 ```
+
+Alternatively, you may use `admin_rest` to reload itself by issuing a [load](https://github.com/Weltschmerz/mod_admin_rest#load-module) request to itself. Example:
+
+> **PUT** /admin_rest/module/localhost/admin_rest
 
 ##TODO
