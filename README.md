@@ -237,4 +237,6 @@ Alternatively, you may use `admin_rest` to reload itself by issuing a [load](htt
 
 > **PUT** /admin_rest/module/admin_rest
 
+Better still, you may use `admin_rest` itself to [add](https://github.com/Weltschmerz/mod_admin_rest#add-to-whitelist) or [remove](https://github.com/Weltschmerz/mod_admin_rest#remove-from-whitelist) IPs from whitelist while in operation.
+
 ##TODO
