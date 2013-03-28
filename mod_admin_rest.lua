@@ -414,6 +414,37 @@ local function ping(event, path, body)
   return respond(event, RESPONSES.pong);
 end
 
+local function get_whitelist(event, path, body)
+  local list = { };
+  if whitelist then
+    for ip, _ in pairs(whitelist) do
+      table.insert(list, ip);
+    end
+  end
+  respond(event, Response(200, { whitelist = list }));
+end
+
+local function add_whitelisted(event, path, body)
+  local ip = path.resource;
+  if not whitelist then whitelist = { } end
+  whitelist[ip] = true;
+  respond(event, Response(200, "Added IP '" .. ip .. "' to whitelist"));
+end
+
+local function remove_whitelisted(event, path, body)
+  local ip = path.resource;
+  local new_list = { };
+  if whitelist then
+    for whitelisted, _ in pairs(whitelist) do
+      if whitelisted ~= ip then
+        new_list[whitelisted ] = true;
+      end
+    end
+  end
+  whitelist = new_list;
+  respond(event, Response(200, "Removed IP '" .. ip .. "' from whitelist"));
+end
+
 --Routes and suitable request methods
 local ROUTES = {
   ping = {
@@ -448,6 +479,12 @@ local ROUTES = {
     PUT    = load_module;
     DELETE = unload_module;
   };
+
+  whitelist = {
+    GET    = get_whitelist;
+    PUT    = add_whitelisted;
+    DELETE = remove_whitelisted;
+  }
 };
 
 

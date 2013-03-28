@@ -195,6 +195,24 @@ Unload a module. Successful response status code is `200`. If a module is not lo
 > **DELETE** /admin_rest/module/`modulename`
 
 
+###get whitelist
+
+Returns array of whitelisted as per `admin_rest_whitelist` [configuration](https://github.com/Weltschmerz/mod_admin_rest#options). Returns an empty object if no whitelist configuration exists.
+
+> **GET** /admin_rest/whitelist
+
+###add to whitelist
+
+Add a provided IP to whitelist.
+
+> **PUT** /admin_rest/whitelist/`ip`
+
+###remove from whitelsit
+
+Remove a provided IP from whitelist.
+
+> **DELETE** /admin_rest/whitelist/`ip`
+
 ##Options
 
 Add any of the following options to your `prosody.cfg.lua`.  You may forward additional HTTP options to Prosody's `http` module.
@@ -217,6 +235,6 @@ $ echo "module:reload('admin_rest', <host>)" | nc localhost 5582
 
 Alternatively, you may use `admin_rest` to reload itself by issuing a [load](https://github.com/Weltschmerz/mod_admin_rest#load-module) request to itself. Example:
 
-> **PUT** /admin_rest/module/localhost/admin_rest
+> **PUT** /admin_rest/module/admin_rest
 
 ##TODO
