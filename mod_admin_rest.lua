@@ -1,5 +1,3 @@
-module:depends("http");
-
 local url    = require "socket.url";
 local jid    = require "util.jid";
 local JSON   = require "util.json";
@@ -49,26 +47,10 @@ local function split_path(path)
   return result;
 end
 
--- Paths adhere to the following structure:
--- (/admin_rest/) <route> / <hostname> / <resource> / <attribute>
--- 
--- Example: to get a user's available data, assuming he or she
--- exists, has the name `testuser` and is using the host 
--- `localhost` we use:
---
--- GET /admin_rest/localhost/testuser
---
--- To modify a user's password, we send a PATCH request, and this
--- time we specify the `attribute` path:
---
--- PATCH /admin_rest/localhost/testuser/password
---
--- With the password supplied in a JSON request body under the
--- property `password`
 local function parse_path(hostname, path) 
   local split = split_path(url.unescape(path));
   return {
-    hostname = hostname;
+    hostname  = hostname;
     route     = split[2];
     resource  = split[3];
     attribute = split[4];
@@ -414,7 +396,7 @@ local function get_whitelist(event, path, body)
       table.insert(list, ip);
     end
   end
-  respond(event, Response(200, { whitelist = list }));
+  respond(event, Response(200, { whitelist = list, count = #list }));
 end
 
 local function add_whitelisted(event, path, body)
@@ -570,6 +552,8 @@ local function handle_request(event)
 
   return handler(event, path, body);
 end
+
+module:depends("http");
 
 module:provides("http", {
   name = base_path:gsub("^/", "");
