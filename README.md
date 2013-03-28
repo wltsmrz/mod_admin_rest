@@ -129,7 +129,7 @@ If message was sent successfully, response status code is `200`. If message was 
 
 Send a message to every connected user using a particular host. Messages are sent from the hostname. Include the content of your message in a JSON-encoded request body. 
 
-> **POST** /admin_rest/message/`hostname`
+> **POST** /admin_rest/broadcast/`hostname`
 
 ```
 //request body
