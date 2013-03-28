@@ -207,7 +207,7 @@ Add a provided IP to whitelist.
 
 > **PUT** /admin_rest/whitelist/`ip`
 
-###remove from whitelsit
+###remove from whitelist
 
 Remove a provided IP from whitelist.
 
