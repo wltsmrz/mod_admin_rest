@@ -199,6 +199,14 @@ Returns array of whitelisted as per `admin_rest_whitelist` [configuration](https
 
 > **GET** /admin_rest/whitelist
 
+```
+//response body
+{
+  whitelist: [ "127.0.0.1", ... ],
+  count: 1
+}
+```
+
 ###add to whitelist
 
 Add a provided IP to whitelist.
