@@ -22,11 +22,11 @@ Your admin_rest HTTP server is now listening on Prosody's HTTP service port (Def
 
 All requests must contain Basic authentication for a user who has administrative privileges. Requests must contain `Content-Type` and `Content-Length` headers. Additionally, some `admin_rest` commands may require request bodies. Request paths have the following general structure:
 
-> /admin_rest/`route`/`hostname`/`resource`/`attribute`
+> /admin_rest/`route`/`resource`/`attribute`
 
-Responses are JSON-encoded objects and have the form:
+Responses are JSON-encoded objects with a `result` property. They have the form:
 
-> ```{ success: boolean, message: { ... } }``
+> `{ result: { ... } }`
 
 `mod_admin_rest` makes appropriate use of HTTP status codes and request methods.
 
@@ -38,7 +38,7 @@ A handful of useful commands are supported. More will come in the future.
 
 If the user does not exist, response status code is `404`. Otherwise `200`. If a user is offline, response will contain user session data and roster. Otherwise the user's roster alone will be sent, along with `offline=true`.
 
-> **GET** /admin_rest/user/`hostname`/`username`
+> **GET** /admin_rest/user/`username`
 
 ```
 {
@@ -53,7 +53,7 @@ If the user does not exist, response status code is `404`. Otherwise `200`. If a
 
 If command complete successfully, an array of user objects is returned, with status code `2001`. If no users are connected, an empty object is returned.
 
-> **GET** /admin_rest/users/`hostname`/
+> **GET** /admin_rest/users
 
 ```
 {
@@ -68,7 +68,7 @@ If command complete successfully, an array of user objects is returned, with sta
 
 Add a user. If the user exists, response status code is `409`. If a user is successfully created, `201`.
 
-> **POST** /admin_rest/user/`hostname`/`username`
+> **POST** /admin_rest/user/`username`
 
 Include `password` in the request body
 
@@ -82,13 +82,13 @@ Include `password` in the request body
 
 Removes a user. If the user does not exist, response status code is `404`. If a user is successfully removed, `200`.
 
-> **DELETE** /admin_rest/user/`hostname`/`username`
+> **DELETE** /admin_rest/user/`username`
 
 ###change user attributes
 
 The only implemented attribute for now is `password`. Ultimately roster modifications may be implemented. Supply values for attributes in the request body as encoded JSON:
 
-> **PATCH** /admin_rest/user/`hostname`/`username`/`attribute`
+> **PATCH** /admin_rest/user/`username`/`attribute`
 
 ```
 {
@@ -96,9 +96,9 @@ The only implemented attribute for now is `password`. Ultimately roster modifica
 }
 ```
 
-Example: For changing a user's password. Assuming user's name is `testuser` and using host `localhost`:
+Example: For changing a user's password. Assuming user's name is `testuser`
 
-> **PATCH** /admin_rest/user/localhost/testuser/password
+> **PATCH** /admin_rest/user/testuser/password
 
 With request body:
 
@@ -114,7 +114,7 @@ If a user was updated successfully, response status code is `200`. If a user doe
 
 Send a message to a particular user on a particular host. Messages are sent from the hostname. Include the content of your message in a JSON-encoded request body.
 
-> **POST** /admin_rest/message/`hostname`/`username`
+> **POST** /admin_rest/message/`username`
 
 ```
 //request body
@@ -129,7 +129,7 @@ If message was sent successfully, response status code is `200`. If message was 
 
 Send a message to every connected user using a particular host. Messages are sent from the hostname. Include the content of your message in a JSON-encoded request body. 
 
-> **POST** /admin_rest/broadcast/`hostname`
+> **POST** /admin_rest/broadcast
 
 ```
 //request body
@@ -147,11 +147,25 @@ Successful response has status code `200`. In the response body is a count of th
 }
 ```
 
+###get module
+
+Returns the name and loaded state of provided module. Successful response status code is `200`.
+
+> **GET** /admin_rest/module/`modulename`
+
+```
+//Response body
+{
+  module: "mymodule",
+  loaded: true
+}
+```
+
 ###list modules
 
 List loaded modules for a particular host. Successful response status code is `200`.
 
-> **GET** /admin_rest/modules/`hostname`
+> **GET** /admin_rest/modules
 
 Sample response:
 
@@ -172,13 +186,13 @@ Sample response:
 
 Load or reload a module. Successful response status code is `200`.
 
-> **PUT** /admin_rest/module/`hostname`/`modulename`
+> **PUT** /admin_rest/module/`modulename`
 
 ###unload module
 
 Unload a module. Successful response status code is `200`. If a module is not loaded, `404`.
 
-> **DELETE** /admin_rest/module/`hostname`/`modulename`
+> **DELETE** /admin_rest/module/`modulename`
 
 
 ##Options
@@ -195,7 +209,7 @@ Base path. Default paths begin with `/admin_rest`.
 
 * `admin_rest_whitelist` **array** [nil]
 
-List of IP addresses to whitelist. Only these IP addresses will be allowed to issue commands over HTTP. If you modify the whitelist while Prosody is running, you will need to reload `admin_rest` module. One way you can do this is by connecting to `admin_telnet` service which runs by default on port `5582`. Then issue the command:
+List of IP addresses to whitelist. Only these IP addresses will be allowed to issue commands over HTTP. If you modify the whitelist while Prosody is running, you will need to reload `admin_rest` module. One way you can do this is by connecting to `admin_telnet` service which runs by default on port `5582`.
 
 ```
 $ echo "module:reload('admin_rest', <host>)" | nc localhost 5582

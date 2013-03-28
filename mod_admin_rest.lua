@@ -65,13 +65,13 @@ end
 --
 -- With the password supplied in a JSON request body under the
 -- property `password`
-local function parse_path(path) 
+local function parse_path(hostname, path) 
   local split = split_path(url.unescape(path));
   return {
+    hostname = hostname;
     route     = split[2];
-    hostname  = split[3];
-    resource  = split[4];
-    attribute = split[5];
+    resource  = split[3];
+    attribute = split[4];
   };
 end
 
@@ -96,10 +96,9 @@ end
 -- }
 --
 local function Response(status_code, message)
-  local response = {};
-  local success = status_code < 400;
+  local response = { };
   local ok, error = pcall(function()
-    message = JSON.encode({ success = success, message = message });
+    message = JSON.encode({ result = message });
   end);
   if not ok or error then
     response.status_code = 500
@@ -116,19 +115,15 @@ local RESPONSES = {
   invalid_auth    = Response(400, "Invalid authentication details");
   auth_failure    = Response(401, "Authentication failure");
   unauthorized    = Response(401, "User must be an administrator");
-
   decode_failure  = Response(400, "Request body is not valid JSON");
-
   invalid_path    = Response(404, "Invalid request path");
   invalid_method  = Response(405, "Invalid request method");
   invalid_body    = Response(400, "Body does not exist or is malformed");
   invalid_host    = Response(404, "Host does not exist or is malformed");
   invalid_user    = Response(404, "User does not exist or is malformed");
-
   sent_message    = Response(200, "Sent message");
   offline_message = Response(202, "Message sent to offline queue");
   drop_message    = Response(501, "Message dropped per configuration");
-
   internal_error  = Response(500, "Internal server error");
   pong            = Response(200, "pong");
 };
@@ -357,7 +352,27 @@ local function broadcast_message(event, path, body)
     count = count + 1;
   end
 
-  return respond(event, Response(200, { count = count }));
+  respond(event, Response(200, { count = count }));
+end
+
+function get_module(event, path, body)
+  local hostname = sp.nameprep(path.hostname);
+  local modulename = path.resource;
+
+  if not modulename then
+    return respond(event, RESPONSES.invalid_path);
+  end
+
+  local loaded;
+
+  if mm.get_module(hostname, modulename) then
+    loaded = true;
+  else
+    loaded = false;
+  end
+
+  local result = { module = modulename, loaded = loaded };
+  respond(event, Response(200, result));
 end
 
 function get_modules(event, path, body)
@@ -372,26 +387,26 @@ end
 
 function load_module(event, path, body)
   local hostname = sp.nameprep(path.hostname);
-  local module = path.resource;
+  local modulename = path.resource;
   local fn = "load";
 
-  if mm.get_module(hostname, module) then fn = "reload" end
+  if mm.get_module(hostname, modulename) then fn = "reload" end
 
-  if not mm[fn](hostname, module) then
+  if not mm[fn](hostname, modulename) then
     respond(event, RESPONSES.internal_error);
   else
-    respond(event, Response(200, "Loaded module '" .. module .. "'"));
+    respond(event, Response(200, "Loaded module '" .. modulename .. "'"));
   end
 end
 
 function unload_module(event, path, body)
   local hostname = sp.nameprep(path.hostname);
-  local module = path.resource;
-  if mm.get_module(hostname, module) then
-    mm.unload(hostname, module);
-    respond(event, Response(200, "Module '" .. module .. "' unloaded"));
+  local modulename = path.resource;
+  if mm.get_module(hostname, modulename) then
+    mm.unload(hostname, modulename);
+    respond(event, Response(200, "Module '" .. modulename .. "' unloaded"));
   else
-    respond(event, Response(404, "Module '" .. module .. "' is not loaded"))
+    respond(event, Response(404, "Module '" .. modulename .. "' is not loaded"));
   end
 end
 
@@ -429,10 +444,12 @@ local ROUTES = {
   };
 
   module = {
+    GET    = get_module;
     PUT    = load_module;
     DELETE = unload_module;
   };
 };
+
 
 --Reserved top-level request routes
 local RESERVED = to_set({ 
@@ -483,7 +500,7 @@ local function handle_request(event)
 
   -- ********** Route ********** --
 
-  local path = parse_path(request.path);
+  local path = parse_path(user_host, request.path);
   local route, hostname = path.route, path.hostname;
 
   -- Restrict to admin
