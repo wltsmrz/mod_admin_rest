@@ -433,16 +433,18 @@ end
 
 local function remove_whitelisted(event, path, body)
   local ip = path.resource;
-  local new_list = { };
-  if whitelist then
+  if whitelist and whitelist[ip] then
+    local new_list = { };
     for whitelisted, _ in pairs(whitelist) do
       if whitelisted ~= ip then
-        new_list[whitelisted ] = true;
+        new_list[whitelisted] = true;
       end
     end
+    whitelist = new_list;
+    respond(event, Response(200, "Removed IP '" .. ip .. "' from whitelist"));
+  else
+    respond(event, Response(404, "IP '" .. ip .. "' is not whitelisted"));
   end
-  whitelist = new_list;
-  respond(event, Response(200, "Removed IP '" .. ip .. "' from whitelist"));
 end
 
 --Routes and suitable request methods
