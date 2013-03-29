@@ -30,8 +30,6 @@ Responses are JSON-encoded objects with a `result` property. They have the form:
 
 A handful of useful commands are supported. More will come in the future.
 
----------------------------------------
-
 ###get user
 
 If the user does not exist, response status code is `404`. Otherwise `200`. If a user is offline, response will contain user session data and roster. Otherwise the user's roster alone will be sent, along with `offline=true`.
