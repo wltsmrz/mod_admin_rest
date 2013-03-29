@@ -248,15 +248,15 @@ Remove a provided IP from whitelist.
 
 Add any of the following options to your `prosody.cfg.lua`.  You may forward additional HTTP options to Prosody's `http` module.
 
-* `admin_rest_secure` **boolean** [false]
+###`admin_rest_secure` **boolean** *false*
 
 Whether incoming connections must be secure.
 
-* `admin_rest_base` **string** [/admin_rest]
+###`admin_rest_base` **string** */admin_rest*
 
 Base path. Default paths begin with `/admin_rest`.
 
-* `admin_rest_whitelist` **array** [nil]
+### `admin_rest_whitelist` **array** *nil*
 
 List of IP addresses to whitelist. Only these IP addresses will be allowed to issue commands over HTTP. If you modify the whitelist while Prosody is running, you will need to reload `admin_rest` module. One way you can do this is by connecting to `admin_telnet` service which runs by default on port `5582`.
 
