@@ -265,7 +265,7 @@ admin_rest_base = "/admin_rest";
 ```
 
 
-### `admin_rest_whitelist` **array** *nil*
+### `admin_rest_whitelist` array
 
 List of IP addresses to whitelist. Only these IP addresses will be allowed to issue commands over HTTP. 
 
