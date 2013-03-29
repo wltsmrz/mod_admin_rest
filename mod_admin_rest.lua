@@ -362,7 +362,10 @@ function get_module(event, path, body)
 
   local loaded = (mm.get_module(hostname, modulename) and true) or false;
   local result = { module = modulename, loaded = loaded };
-  respond(event, Response(200, result));
+  local status = 200;
+  if not loaded then status = 404 end
+
+  respond(event, Response(status, result))
 end
 
 function get_modules(event, path, body)
