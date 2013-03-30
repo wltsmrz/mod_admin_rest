@@ -266,7 +266,7 @@ local function remove_user(event, path, body)
     source = "mod_admin_rest";
   });
 
-  module:log("info", "Deregistered user: " .. jioned);
+  module:log("info", "Deregistered user: " .. joined);
 end
 
 local function patch_user(event, path, body) 
