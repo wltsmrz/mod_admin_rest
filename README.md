@@ -47,6 +47,14 @@ If the user does not exist, response status code is `404`. Otherwise `200`. If a
 
 ---------------------------------------
 
+###get user connected
+
+Unlike `get user`, this will not respond with stringified user content, which can be quite verbose as it contains session data. This command will respond with a `200` status code if the user is connected.
+
+> **GET** /admin_rest/user_connected/`username`
+
+---------------------------------------
+
 ###get connected users
 
 If command complete successfully, an array of user objects is returned, with status code `2001`. If no users are connected, an empty object is returned.
