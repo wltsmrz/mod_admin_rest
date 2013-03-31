@@ -162,9 +162,23 @@ local function get_recipient(hostname, username)
   return jid, offline;
 end
 
--- Return a user's roster & session data if connected.
--- If not connected, return the roster alone.
--- If the user does not exist, 404.
+local function get_user_connected(event, path, body)
+  local hostname = sp.nameprep(path.hostname);
+  local username = sp.nodeprep(path.resource);
+
+  if not hostname or not username then
+    return respond(event, RESPONSES.invalid_path);
+  end
+
+  local jid, connected = get_recipient(hostname, username);
+
+  if connected then
+    respond(event, Response(200, "User is connected: " + joined));
+  else
+    respond(event, Response(404, "User not found: " + joined))
+  end
+end
+
 local function get_user(event, path, body)
   local hostname = sp.nameprep(path.hostname);
   local username = sp.nodeprep(path.resource);
@@ -467,6 +481,10 @@ local ROUTES = {
     DELETE = remove_user;
     PATCH  = patch_user;
   };
+
+  user_connected = {
+    GET = get_user_connected;
+  },
 
   users = {
     GET = get_users;
