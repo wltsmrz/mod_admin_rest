@@ -117,11 +117,11 @@ local function respond(event, message, headers)
     for header, data in pairs(headers) do 
       response.headers[header] = data;
     end
-  end;
+  end
 
-	response.headers.content_type = "application/json";
-	response.status_code = message.status_code;
-	response:send(message.message);
+  response.headers.content_type = "application/json";
+  response.status_code = message.status_code;
+  response:send(message.message);
 end
 
 local function get_host(hostname)
@@ -158,7 +158,7 @@ end
 local function get_recipient(hostname, username)
   local jid = jid.join(username, hostname);
   local session = get_session(hostname, username);
-  local offline = not session and user_exists(username, hostname);
+  local offline = not session and um.user_exists(username, hostname);
   return jid, offline;
 end
 
@@ -496,7 +496,6 @@ local ROUTES = {
     DELETE = remove_whitelisted;
   }
 };
-
 
 --Reserved top-level request routes
 local RESERVED = to_set({ "admin" });
