@@ -484,7 +484,7 @@ local ROUTES = {
 
   user_connected = {
     GET = get_user_connected;
-  },
+  };
 
   users = {
     GET = get_users;
