@@ -173,9 +173,9 @@ local function get_user_connected(event, path, body)
   local jid, connected = get_recipient(hostname, username);
 
   if connected then
-    respond(event, Response(200, "User is connected: " .. joined));
+    respond(event, Response(200, "User is connected: " .. jid));
   else
-    respond(event, Response(404, "User not found: " .. joined))
+    respond(event, Response(404, "User not found: " .. jid));
   end
 end
 
