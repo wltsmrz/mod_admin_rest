@@ -170,12 +170,13 @@ local function get_user_connected(event, path, body)
     return respond(event, RESPONSES.invalid_path);
   end
 
-  local jid, connected = get_recipient(hostname, username);
+  local jid = jid.join(username, hostname);
+  local connected = get_session(hostname, username);
 
   if connected then
     respond(event, Response(200, "User is connected: " .. jid));
   else
-    respond(event, Response(404, "User not found: " .. jid));
+    respond(event, Response(404, "User not connected: " .. jid));
   end
 end
 
