@@ -188,21 +188,18 @@ end
 
 local function normalize_user(user)
   local cleaned = { };
-  cleaned.hostname  = user.hostname;
-  cleaned.username  = user.username;
   cleaned.connected = user.connected or false;
   cleaned.sessions  = { };
   cleaned.roster    = { };
 
   for resource, session in pairs(user.sessions or {}) do
-    local c_session = { }
-    c_session.resource = resource;
-    c_session.conn = {
-      id     = session.conn.id;
-      ip     = session.conn._ip;
-      port   = session.conn._port;
-      secure = session.conn._usingssl;
-    };
+    local c_session = { 
+      resource = resource;
+      id       = session.conn.id;
+      ip       = session.conn._ip;
+      port     = session.conn._port;
+      secure   = session.secure;
+    }
     table.insert(cleaned.sessions, c_session);
   end
 
