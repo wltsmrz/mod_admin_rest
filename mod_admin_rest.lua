@@ -70,23 +70,20 @@ local function emit(host, event, data)
   end
 end
 
--- Generate a Response object of the form:
---
--- {
---  {number} status_code:  <HTTP status code>
---  {string} message:      <JSON response message>
--- }
---
-local function Response(status_code, message)
+local function Response(status_code, message, array)
   local response = { };
   local ok, error = pcall(function()
-    message = JSON.encode({ result = message });
+    if message.result then
+      message = JSON.encode(message);
+    else
+      message = JSON.encode({ result = message });
+    end
   end);
   if not ok or error then
     response.status_code = 500
   else
     response.status_code = status_code;
-    response.message = message;
+    response.body = message;
   end
   return response;
 end
@@ -106,10 +103,10 @@ local RESPONSES = {
   offline_message = Response(202, "Message sent to offline queue");
   drop_message    = Response(501, "Message dropped per configuration");
   internal_error  = Response(500, "Internal server error");
-  pong            = Response(200, "pong");
+  pong            = Response(200, "PONG");
 };
 
-local function respond(event, message, headers)
+local function respond(event, res, headers)
 	local response = event.response;
 
   if headers then
@@ -119,8 +116,8 @@ local function respond(event, message, headers)
   end
 
   response.headers.content_type = "application/json";
-  response.status_code = message.status_code;
-  response:send(message.message);
+  response.status_code = res.status_code;
+  response:send(res.body);
 end
 
 local function get_host(hostname)
@@ -138,10 +135,10 @@ local function get_session(hostname, username)
 end
 
 local function get_connected_users(hostname) 
-  local sessions = get_sessions(hostname) or { };
+  local sessions = get_sessions(hostname);
   local users = { };
 
-  for username, user in pairs(sessions) do
+  for username, user in pairs(sessions or {}) do
     for resource, session in pairs(user.sessions or {}) do
       table.insert(users, { 
         username = username,
@@ -316,6 +313,11 @@ end
 local function send_message(event, path, body)
   local hostname = sp.nameprep(path.hostname);
   local username = sp.nodeprep(path.resource);
+
+  if not mm.is_loaded(hostname, 'message') then
+    return respond(event, RESPONSES.drop_message);
+  end
+
   local to, offline = get_recipient(hostname, username);
 
   if not to and not offline then
@@ -348,6 +350,11 @@ end
 
 local function broadcast_message(event, path, body)
   local hostname = sp.nameprep(path.hostname);
+
+  if not mm.is_loaded(hostname, 'message') then
+    return respond(event, RESPONSES.drop_message);
+  end
+
   local sessions = get_sessions(hostname);
   local count = 0;
 
@@ -374,7 +381,7 @@ function get_module(event, path, body)
     return respond(event, RESPONSES.invalid_path);
   end
 
-  local loaded = (mm.get_module(hostname, modulename) and true) or false;
+  local loaded = mm.is_loaded(hostname, modulename) or false;
   local result = { module = modulename, loaded = loaded };
   local status = 200;
   if not loaded then status = 404 end
