@@ -5,12 +5,13 @@ local b64    = require "util.encodings".base64;
 local sp     = require "util.encodings".stringprep;
 
 local JSON = { };
+local JSON = require "util.json";
 
 -- Use lua-cjson if it is available
-local ok, error = pcall(function() JSON = require "cjson" end);
+--local ok, error = pcall(function() JSON = require "cjson" end);
 
 -- Fall back to util.json
-if not ok or error then JSON = require "util.json" end
+--if not ok or error then JSON = require "util.json" end
 
 local um = usermanager;
 local rm = rostermanager;
@@ -86,6 +87,7 @@ local function Response(status_code, message, array)
 
   if not ok or error then
     response.status_code = 500
+    response.body = "Failed to encode JSON response";
   else
     response.status_code = status_code;
     response.body = message;
@@ -174,12 +176,42 @@ local function get_user_connected(event, path, body)
 
   local jid = jid.join(username, hostname);
   local connected = get_session(hostname, username);
+  local response;
 
   if connected then
-    respond(event, Response(200, "User is connected: " .. jid));
+    response = Response(200, "User is connected: " .. jid);
   else
-    respond(event, Response(404, "User not connected: " .. jid));
+    response = Response(404, "User is not connected: " .. jid);
   end
+
+  respond(event, response);
+end
+
+local function normalize_user(user)
+  local cleaned = { };
+  cleaned.hostname  = user.hostname;
+  cleaned.username  = user.username;
+  cleaned.connected = user.connected or false;
+  cleaned.sessions  = { };
+  cleaned.roster    = { };
+
+  for resource, session in pairs(user.sessions or {}) do
+    local c_session = { }
+    c_session.resource = resource;
+    c_session.conn = {
+      id     = session.conn.id;
+      ip     = session.conn._ip;
+      port   = session.conn._port;
+      secure = session.conn._usingssl;
+    };
+    table.insert(cleaned.sessions, c_session);
+  end
+
+  if user.roster and #user.roster > 0 then
+    cleaned.roster = user.roster;
+  end
+
+  return cleaned;
 end
 
 local function get_user(event, path, body)
@@ -195,19 +227,18 @@ local function get_user(event, path, body)
     return respond(event, Response(404, "User does not exist: " .. joined));
   end
 
-  local response = { };
-  local user = { };
+  local user = { hostname = hostname, username = username };
   local session = get_session(hostname, username);
+
   if session then
     user.connected = true;
     user.roster = session.roster;
     user.sessions = session.sessions;
   else
-    user.connected = false;
     user.roster = rm.load_roster(username, hostname);
   end
 
-  response.user = user;
+  local response = { user = normalize_user(user) };
   respond(event, Response(200, response));
 end
 
