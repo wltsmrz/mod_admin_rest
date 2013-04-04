@@ -5,13 +5,12 @@ local b64    = require "util.encodings".base64;
 local sp     = require "util.encodings".stringprep;
 
 local JSON = { };
-local JSON = require "util.json";
 
 -- Use lua-cjson if it is available
---local ok, error = pcall(function() JSON = require "cjson" end);
+local ok, error = pcall(function() JSON = require "cjson.safe" end);
 
 -- Fall back to util.json
---if not ok or error then JSON = require "util.json" end
+if not ok or error then JSON = require "util.json" end
 
 local um = usermanager;
 local rm = rostermanager;
