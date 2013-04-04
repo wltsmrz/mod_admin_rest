@@ -103,7 +103,6 @@ local RESPONSES = {
   invalid_body    = Response(400, "Body does not exist or is malformed");
   invalid_host    = Response(404, "Host does not exist or is malformed");
   invalid_user    = Response(404, "User does not exist or is malformed");
-  sent_message    = Response(200, "Sent message");
   offline_message = Response(202, "Message sent to offline queue");
   drop_message    = Response(501, "Message dropped per configuration");
   internal_error  = Response(500, "Internal server error");
