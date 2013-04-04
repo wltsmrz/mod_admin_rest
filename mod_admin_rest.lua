@@ -1,9 +1,16 @@
 local url    = require "socket.url";
 local jid    = require "util.jid";
-local JSON   = require "util.json";
 local stanza = require "util.stanza";
 local b64    = require "util.encodings".base64;
 local sp     = require "util.encodings".stringprep;
+
+local JSON = { };
+
+-- Use lua-cjson if it is available
+local ok, error = pcall(function() JSON = require "cjson" end);
+
+-- Fall back to util.json
+if not ok or error then JSON = require "util.json" end
 
 local um = usermanager;
 local rm = rostermanager;
@@ -72,19 +79,18 @@ end
 
 local function Response(status_code, message, array)
   local response = { };
+
   local ok, error = pcall(function()
-    if message.result then
-      message = JSON.encode(message);
-    else
-      message = JSON.encode({ result = message });
-    end
+    message = JSON.encode({ result = message });
   end);
+
   if not ok or error then
     response.status_code = 500
   else
     response.status_code = status_code;
     response.body = message;
   end
+
   return response;
 end
 
