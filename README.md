@@ -33,16 +33,29 @@ A handful of useful commands are supported. More will come in the future.
 
 ###get user
 
-If the user does not exist, response status code is `404`. Otherwise `200`. If a user is offline, response will contain user session data and roster. Otherwise the user's roster alone will be sent, along with `offline=true`.
+If the user does not exist, response status code is `404`. Otherwise `200`. If a user is offline, response will contain `connected=false` and empty roster/session lists.
 
 > **GET** /admin_rest/user/`username`
 
 ```
 {
   user: {
-    sessions: { ... },
-    roster: { ... }
+    connected: true,
+    sessions: [ ... ],
+    roster: [ ... ]
   }
+}
+```
+
+Each `session` item in the `sessions` list has the following structure:
+
+```
+{
+  resource: "",
+  secure: true,
+  port: 1337,
+  ip: 127.0.0.1,
+  id: "f8fhfw3"
 }
 ```
 
