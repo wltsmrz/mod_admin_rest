@@ -411,10 +411,16 @@ function get_module(event, path, body)
     return respond(event, RESPONSES.invalid_path);
   end
 
-  local loaded = mm.is_loaded(hostname, modulename) or false;
-  local result = { module = modulename, loaded = loaded };
-  local status = 200;
-  if not loaded then status = 404 end
+  local result = { module = modulename };
+  local status;
+
+  if not mm.is_loaded(hostname, modulename) then
+    result.loaded = false;
+    status = 404;
+  else
+    result.loaded = true;
+    status = 200;
+  end
 
   respond(event, Response(status, result))
 end
