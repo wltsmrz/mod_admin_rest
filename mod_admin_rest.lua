@@ -351,34 +351,32 @@ local function send_message(event, path, body)
     return respond(event, RESPONSES.drop_message);
   end
 
-  local to, offline = get_recipient(hostname, username);
+  local jid, offline = get_recipient(hostname, username);
 
-  if not to and not offline then
+  if not jid and not offline then
     return respond(event, RESPONSES.invalid_user);
   end
 
-  local attrs = { to = to, from = hostname };
-  local message = stanza.message(attrs):tag("body"):text(body.message);
+  local message = stanza.message({ to = jid, from = hostname}, body.message);
 
   if offline then
-    if not mm.get_module(hostname, "offline") then
+    if not mm.is_loaded(hostname, "offline") then
       return respond(event, RESPONSES.drop_message);
     else
       emit(hostname, "message/offline/handle", {
-        origin = { host = hostname, username = username },
         stanza = stanza.deserialize(message)
       });
       return respond(event, RESPONSES.offline_message);
     end
   end
 
-  if not pcall(function() module:send(message); end) then
-    return respond(event, RESPONSES.internal_ERROR);
+  if not pcall(function() module:send(message) end) then
+    return respond(event, RESPONSES.internal_error);
   end
 
-  respond(event, Response(200, "Sent message to user: " .. to));
+  respond(event, Response(200, "Sent message to user: " .. jid));
 
-  module:log("info", "Message sent to user: " .. to);
+  module:log("info", "Message sent to user: " .. jid);
 end
 
 local function broadcast_message(event, path, body)
@@ -388,22 +386,21 @@ local function broadcast_message(event, path, body)
     return respond(event, RESPONSES.drop_message);
   end
 
-  local sessions = get_sessions(hostname);
+  local attrs = { from = hostname };
   local count = 0;
 
-  local text = body.message or "";
-
-  for username, user in pairs(sessions or {}) do
-    local jid = jid.join(username, hostname);
-    local attrs = { to = jid, from = hostname };
-    local message = stanza.message(attrs):tag("body"):text(text);
+  for username, session in pairs(get_sessions(hostname) or {}) do
+    attrs.to = jid.join(username, hostname);
+    local message = stanza.message(attrs, body.message);
     module:send(message);
     count = count + 1;
   end
 
   respond(event, Response(200, { count = count }));
 
-  module:log("info", "Message broadcasted to users: " .. count);
+  if count > 0 then
+    module:log("info", "Message broadcasted to users: " .. count);
+  end
 end
 
 function get_module(event, path, body)
@@ -424,9 +421,8 @@ end
 
 function get_modules(event, path, body)
   local hostname = sp.nameprep(path.hostname);
-  local modules = mm.get_modules(hostname);
   local list = { }
-  for name, _ in pairs(modules or {}) do
+  for name in pairs(mm.get_modules(hostname) or {}) do
     table.insert(list, name);
   end
   respond(event, Response(200, { modules = list, count = #list }));
@@ -437,7 +433,7 @@ function load_module(event, path, body)
   local modulename = path.resource;
   local fn = "load";
 
-  if mm.get_module(hostname, modulename) then fn = "reload" end
+  if mm.is_loaded(hostname, modulename) then fn = "reload" end
 
   if not mm[fn](hostname, modulename) then
     return respond(event, RESPONSES.internal_error);
@@ -452,11 +448,12 @@ function unload_module(event, path, body)
   local hostname = sp.nameprep(path.hostname);
   local modulename = path.resource;
 
-  if not mm.get_module(hostname, modulename) then
+  if not mm.is_loaded(hostname, modulename) then
     return respond(event, Response(404, "Module is not loaded:" .. modulename));
   end
 
   mm.unload(hostname, modulename);
+
   respond(event, Response(200, "Module unloaded: " .. modulename));
 
   module:log("info", "Module unloaded: " .. modulename)
