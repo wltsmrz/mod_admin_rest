@@ -304,7 +304,7 @@ local function remove_user(event, path, body)
 
   respond(event, Response(200, "User deleted: " .. joined));
 
-  emit(hostname, "user-deregistered", {
+  emit(hostname, "user-deleted", {
     username = username;
     hostname = hostname;
     source = "mod_admin_rest";
