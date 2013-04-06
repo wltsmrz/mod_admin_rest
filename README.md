@@ -183,7 +183,6 @@ Send bulk messages to a number of particular users. Request body should contain 
 > **POST** /admin_rest/message
 
 ```
-//request body
 {
   [
     { to: "testuser", message: "My message" },
@@ -221,7 +220,7 @@ In the response body is a count of the number of users who were sent the message
 { count: 100 }
 ```
 
-**Status codes **
+**Status codes**
 
 `200` Broadcast successful
 
@@ -233,13 +232,19 @@ Returns the name and loaded state of provided module. Successful response status
 
 > **GET** /admin_rest/module/`modulename`
 
+Response has the following form:
+
 ```
-//Response body
 {
   module: "mymodule",
   loaded: true
 }
 ```
+
+**Status codes**
+
++ `200` Module is loaded
++ `404` Module is not loaded
 
 ---------------------------------------
 
@@ -264,6 +269,10 @@ Sample response:
 }
 ```
 
+**Status codes**
+
++ `200` Modules listed
+
 ---------------------------------------
 
 ###load module
@@ -271,6 +280,10 @@ Sample response:
 Load or reload a module. Successful response status code is `200`.
 
 > **PUT** /admin_rest/module/`modulename`
+
+**Status codes**
+
++ `200` Module loaded
 
 ---------------------------------------
 
@@ -280,6 +293,10 @@ Unload a module. Successful response status code is `200`. If a module is not lo
 
 > **DELETE** /admin_rest/module/`modulename`
 
+**Status codes**
+
++ `200` Module unloaded
+
 ---------------------------------------
 
 ###get whitelist
@@ -288,8 +305,9 @@ Returns array of whitelisted as per `admin_rest_whitelist` [configuration](https
 
 > **GET** /admin_rest/whitelist
 
+An example response body: 
+
 ```
-//response body
 {
   whitelist: [ "127.0.0.1", ... ],
   count: 1
@@ -304,6 +322,10 @@ Add a provided IP to whitelist.
 
 > **PUT** /admin_rest/whitelist/`ip`
 
+**Status codes**
+
++ `200` Added to whitelist
+
 ---------------------------------------
 
 ###remove from whitelist
@@ -311,6 +333,10 @@ Add a provided IP to whitelist.
 Remove a provided IP from whitelist.
 
 > **DELETE** /admin_rest/whitelist/`ip`
+
+**Status codes**
+
++ `200` Removed from whitelist
 
 ---------------------------------------
 
