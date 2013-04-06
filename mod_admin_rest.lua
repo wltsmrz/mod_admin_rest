@@ -69,14 +69,6 @@ local function parse_auth(auth)
   return b64.decode(auth:match("[^ ]*$") or ""):match("([^:]*):(.*)");
 end
 
--- Convenience function for emitting events
-local function emit(host, event, data) 
-  local host = hosts[host];
-  if host and host.events then
-    host.events.fire_event(event, data);
-  end
-end
-
 local function Response(status_code, message, array)
   local response = { };
 
@@ -275,7 +267,7 @@ local function add_user(event, path, body)
 
   respond(event, Response(201, result));
 
-  emit(hostname, "user-registered", {
+  module:fire_event("user-registered", {
     username = username;
     hostname = hostname;
     source   = "mod_admin_rest";
@@ -304,7 +296,7 @@ local function remove_user(event, path, body)
 
   respond(event, Response(200, "User deleted: " .. jid));
 
-  emit(hostname, "user-deleted", {
+  module:fire_event("user-deleted", {
     username = username;
     hostname = hostname;
     source = "mod_admin_rest";
@@ -380,8 +372,8 @@ local function send_multicast(event, path, body, hostname)
 
       local message = stanza.message(attrs, usermessage);
 
-      if offline then
-        emit(hostname, "message/offline/handle", {
+      if offline and offline_enabled() then
+        module:fire_event("message/offline/handle", {
           stanza = stanza.deserialize(message);
         });
       elseif session then
@@ -420,12 +412,14 @@ local function send_message(event, path, body)
 
   if offline then
     if not offline_enabled() then
-      return respond(event, RESPONSES.drop_message);
+      respond(event, RESPONSES.drop_message);
+      return
     else
-      emit(hostname, "message/offline/handle", {
+      respond(event, RESPONSES.offline_message);
+      module:fire_event("message/offline/handle", {
         stanza = stanza.deserialize(message)
       });
-      return respond(event, RESPONSES.offline_message);
+      return
     end
   end
 
