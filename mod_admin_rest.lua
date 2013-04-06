@@ -358,13 +358,12 @@ local function send_multicast(event, path, body, hostname)
   for i=1, #recipients do
     repeat
       local recipient = recipients[i];
-      local usermessage;
+      local usermessage = body.message;
 
       if type(recipient) == "table" then
         if not recipient.to then break end
         if recipient.message then
           usermessage = recipient.message;
-        else usermessage = body.message;
         end
         recipient = recipient.to
       end
