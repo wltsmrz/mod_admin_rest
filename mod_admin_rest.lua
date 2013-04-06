@@ -159,10 +159,13 @@ local function get_connected_users(hostname)
 end
 
 local function get_recipient(hostname, username)
-  local jid = jid.join(username, hostname);
-  local session = get_session(hostname, username);
-  local offline = not session and um.user_exists(username, hostname);
-  return jid, offline;
+  local id = nil;
+  local offline = false;
+  if um.user_exists(username, hostname) then
+    id = jid.join(username, hostname)
+    offline = not get_session(hostname, username);
+  end
+  return id, offline;
 end
 
 local function get_user_connected(event, path, body)
@@ -255,7 +258,7 @@ local function add_user(event, path, body)
   local username = sp.nodeprep(path.resource);
   local password = body["password"];
 
-  if not hostname or not username then
+  if not username then
     return respond(event, RESPONSES.invalid_path);
   end
 
@@ -263,17 +266,19 @@ local function add_user(event, path, body)
     return respond(event, RESPONSES.invalid_body);
   end
 
-  local joined = jid.join(username, hostname);
+  local jid = jid.join(username, hostname);
 
   if um.user_exists(username, hostname) then
-    return respond(event, Response(409, "User already exists: " .. joined));
+    return respond(event, Response(409, "User already exists: " .. jid));
   end
 
   if not um.create_user(username, password, hostname) then
     return respond(event, RESPONSES.internal_error);
   end
 
-  respond(event, Response(201, "User created: " .. joined));
+  local result = "User registered: " .. jid;
+
+  respond(event, Response(201, result));
 
   emit(hostname, "user-registered", {
     username = username;
@@ -281,7 +286,7 @@ local function add_user(event, path, body)
     source   = "mod_admin_rest";
   })
 
-  module:log("info", "Registered user: " .. joined);
+  module:log("info", result);
 end
 
 local function remove_user(event, path, body)
@@ -292,17 +297,17 @@ local function remove_user(event, path, body)
     return respond(event, RESPONSES.invalid_path);
   end
 
-  local joined = jid.join(username, hostname);
+  local jid = jid.join(username, hostname);
 
   if not um.user_exists(username, hostname) then
-    return respond(event, Response(404, "User does not exist: " .. joined));
+    return respond(event, Response(404, "User does not exist: " .. jid));
   end
 
   if not um.delete_user(username, hostname) then
     return respond(event, RESPONSES.internal_error);
   end
 
-  respond(event, Response(200, "User deleted: " .. joined));
+  respond(event, Response(200, "User deleted: " .. jid));
 
   emit(hostname, "user-deleted", {
     username = username;
@@ -310,7 +315,7 @@ local function remove_user(event, path, body)
     source = "mod_admin_rest";
   });
 
-  module:log("info", "Deregistered user: " .. joined);
+  module:log("info", "Deregistered user: " .. jid);
 end
 
 local function patch_user(event, path, body) 
@@ -322,10 +327,10 @@ local function patch_user(event, path, body)
     return respond(event, RESPONSES.invalid_path);
   end
 
-  local joined = jid.join(username, hostname);
+  local jid = jid.join(username, hostname);
 
   if not um.user_exists(username, hostname) then
-    return respond(event, Response(404, "User does not exist: " .. joined));
+    return respond(event, Response(404, "User does not exist: " .. jid));
   end
 
   if attribute == "password" then
@@ -338,9 +343,59 @@ local function patch_user(event, path, body)
     end
   end
 
-  respond(event, Response(200, "User updated: " .. joined));
+  local result = "User modified: " .. jid;
 
-  module:log("info", "User modified: " .. joined);
+  respond(event, Response(200, result));
+
+  module:log("info", result);
+end
+
+local function send_multicast(event, path, body, hostname)
+  local recipients = body.recipients;
+  local attrs = { from = hostname };
+  local count = 0;
+
+  for i=1, #recipients do
+    repeat
+      local recipient = recipients[i];
+      local usermessage;
+
+      if type(recipient) == "table" then
+        if not recipient.to then break end
+        if recipient.message then
+          usermessage = recipient.message;
+        else usermessage = body.message;
+        end
+        recipient = recipient.to
+      end
+
+      if not usermessage then break end
+
+      local jid, offline = get_recipient(hostname, recipient);
+
+      if not jid then break end
+
+      attrs.to = jid;
+
+      local message = stanza.message(attrs, usermessage);
+
+      if offline then
+        emit(hostname, "message/offline/handle", {
+          stanza = stanza.deserialize(message);
+        });
+      else
+        module:send(message);
+      end
+
+      count = count + 1;
+    until true
+  end
+
+  local result = "Message multicasted to users: " .. count;
+
+  respond(event, Response(200, result));
+
+  module:log("info", result);
 end
 
 local function send_message(event, path, body)
@@ -351,9 +406,13 @@ local function send_message(event, path, body)
     return respond(event, RESPONSES.drop_message);
   end
 
+  if not username and body.recipients then
+    return send_multicast(event, path, body, hostname);
+  end
+
   local jid, offline = get_recipient(hostname, username);
 
-  if not jid and not offline then
+  if not jid then
     return respond(event, RESPONSES.invalid_user);
   end
 
@@ -374,9 +433,11 @@ local function send_message(event, path, body)
     return respond(event, RESPONSES.internal_error);
   end
 
-  respond(event, Response(200, "Sent message to user: " .. jid));
+  local result = "Message sent to user: " .. jid;
 
-  module:log("info", "Message sent to user: " .. jid);
+  respond(event, Response(200, result));
+
+  module:log("info", result);
 end
 
 local function broadcast_message(event, path, body)
@@ -445,9 +506,11 @@ function load_module(event, path, body)
     return respond(event, RESPONSES.internal_error);
   end
 
-  respond(event, Response(200, "Loaded module: " .. modulename));
+  local result = "Module loaded: " .. modulename;
 
-  module:log("info", "Module loaded: " .. modulename);
+  respond(event, Response(200, result));
+
+  module:log("info", result);
 end
 
 function unload_module(event, path, body)
@@ -460,9 +523,11 @@ function unload_module(event, path, body)
 
   mm.unload(hostname, modulename);
 
-  respond(event, Response(200, "Module unloaded: " .. modulename));
+  local result = "Module unloaded: " .. modulname;
 
-  module:log("info", "Module unloaded: " .. modulename)
+  respond(event, Response(200, result));
+
+  module:log("info", result);
 end
 
 local function get_whitelist(event, path, body)
@@ -483,9 +548,11 @@ local function add_whitelisted(event, path, body)
 
   whitelist[ip] = true;
 
-  respond(event, Response(200, "Added IP to whitelist: " .. ip));
+  local result = "IP added to whitelist: " .. ip;
 
-  module:log("warn", "IP added to whitelist: " .. ip);
+  respond(event, Response(200, result));
+
+  module:log("warn", result);
 end
 
 local function remove_whitelisted(event, path, body)
@@ -503,9 +570,11 @@ local function remove_whitelisted(event, path, body)
   end
   whitelist = new_list;
 
-  respond(event, Response(200, "Removed IP '" .. ip .. "' from whitelist"));
+  local result = "IP removed from whtielist: " .. ip;
 
-  module:log("warn", "IP removed from whitelist: " .. ip)
+  respond(event, Response(200, result));
+
+  module:log("warn", result);
 end
 
 local function ping(event, path, body)
