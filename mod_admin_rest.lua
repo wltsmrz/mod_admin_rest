@@ -149,7 +149,6 @@ local function get_connected_users(hostname)
     for resource, session in pairs(user.sessions or {}) do
       table.insert(users, { 
         username = username,
-        hostname = hostname,
         resource = resource 
       });
     end
@@ -159,13 +158,9 @@ local function get_connected_users(hostname)
 end
 
 local function get_recipient(hostname, username)
-  local id = nil;
-  local offline = false;
-  if um.user_exists(username, hostname) then
-    id = jid.join(username, hostname)
-    offline = not get_session(hostname, username);
-  end
-  return id, offline;
+  local session = get_session(hostname, username)
+  local offline = not session and um.user_exists(username, hostname);
+  return session, offline;
 end
 
 local function get_user_connected(event, path, body)
@@ -350,6 +345,13 @@ local function patch_user(event, path, body)
   module:log("info", result);
 end
 
+local function offline_enabled()
+  local host = module:get_host();
+  return mm.is_loaded(host, "offline")
+  or mm.is_loaded(host, "offline_authed")
+  or false;
+end
+
 local function send_multicast(event, path, body, hostname)
   local recipients = body.recipients;
   local attrs = { from = hostname };
@@ -370,11 +372,11 @@ local function send_multicast(event, path, body, hostname)
 
       if not usermessage then break end
 
-      local jid, offline = get_recipient(hostname, recipient);
+      local session, offline = get_recipient(hostname, recipient);
 
-      if not jid then break end
+      if not session and not offline then break end
 
-      attrs.to = jid;
+      attrs.to = jid.join(username, hostname);
 
       local message = stanza.message(attrs, usermessage);
 
@@ -382,8 +384,10 @@ local function send_multicast(event, path, body, hostname)
         emit(hostname, "message/offline/handle", {
           stanza = stanza.deserialize(message);
         });
-      else
-        module:send(message);
+      elseif session then
+        for _, session in pairs(session.sessions or {}) do
+          session.send(message);
+        end
       end
 
       count = count + 1;
@@ -401,24 +405,21 @@ local function send_message(event, path, body)
   local hostname = sp.nameprep(path.hostname);
   local username = sp.nodeprep(path.resource);
 
-  if not mm.is_loaded(hostname, 'message') then
-    return respond(event, RESPONSES.drop_message);
-  end
-
   if not username and body.recipients then
     return send_multicast(event, path, body, hostname);
   end
 
-  local jid, offline = get_recipient(hostname, username);
+  local session, offline = get_recipient(hostname, username);
 
-  if not jid then
+  if not session and not offline then
     return respond(event, RESPONSES.invalid_user);
   end
 
+  local jid = jid.join(username, hostname);
   local message = stanza.message({ to = jid, from = hostname}, body.message);
 
   if offline then
-    if not mm.is_loaded(hostname, "offline") then
+    if not offline_enabled() then
       return respond(event, RESPONSES.drop_message);
     else
       emit(hostname, "message/offline/handle", {
@@ -428,8 +429,8 @@ local function send_message(event, path, body)
     end
   end
 
-  if not pcall(function() module:send(message) end) then
-    return respond(event, RESPONSES.internal_error);
+  for resource, session in pairs(session.sessions or {}) do
+    session.send(message)
   end
 
   local result = "Message sent to user: " .. jid;
@@ -441,18 +442,15 @@ end
 
 local function broadcast_message(event, path, body)
   local hostname = sp.nameprep(path.hostname);
-
-  if not mm.is_loaded(hostname, 'message') then
-    return respond(event, RESPONSES.drop_message);
-  end
-
   local attrs = { from = hostname };
   local count = 0;
 
   for username, session in pairs(get_sessions(hostname) or {}) do
     attrs.to = jid.join(username, hostname);
     local message = stanza.message(attrs, body.message);
-    module:send(message);
+    for _, session in pairs(session.sessions or {}) do
+      session.send(message);
+    end
     count = count + 1;
   end
 
