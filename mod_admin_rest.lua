@@ -346,47 +346,41 @@ end
 
 local function send_multicast(event, path, body, hostname)
   local recipients = body.recipients;
-  local attrs = { from = hostname };
-  local count = 0;
+  local sent = 0;
+  local delayed = 0;
 
   for i=1, #recipients do
     repeat
       local recipient = recipients[i];
-      local usermessage = body.message;
+      local msg = recipient.message;
+      local node = recipient.to;
 
-      if type(recipient) == "table" then
-        if not recipient.to then break end
-        if recipient.message then
-          usermessage = recipient.message;
-        end
-        recipient = recipient.to
-      end
+      if not node or not msg then break end
 
-      if not usermessage then break end
-
-      local session, offline = get_recipient(hostname, recipient);
+      local session, offline = get_recipient(hostname, node);
 
       if not session and not offline then break end
 
-      attrs.to = jid.join(username, hostname);
+      local attrs = { from = hostname, to = jid.join(node, hostname) };
 
-      local message = stanza.message(attrs, usermessage);
+      local message = stanza.message(attrs, msg);
 
       if offline and offline_enabled() then
         module:fire_event("message/offline/handle", {
           stanza = stanza.deserialize(message);
         });
+        delayed = delayed + 1;
       elseif session then
         for _, session in pairs(session.sessions or {}) do
           session.send(message);
         end
+        sent = sent + 1;
       end
 
-      count = count + 1;
     until true
   end
 
-  local result = "Message multicasted to users: " .. count;
+  local result = "Message multicasted to users: " .. sent .. "/" .. delayed;
 
   respond(event, Response(200, result));
 
