@@ -59,6 +59,11 @@ Each `session` item in the `sessions` list has the following structure:
 }
 ```
 
+**Status codes**
+
++ `200` User connected, successful
++ `404` User does not exist or not connected
+
 ---------------------------------------
 
 ###get user connected
@@ -66,6 +71,11 @@ Each `session` item in the `sessions` list has the following structure:
 Unlike `get user`, this will not respond with stringified user content, which can be quite verbose as it contains session data. This command will respond with a `200` status code if the user is connected.
 
 > **GET** /admin_rest/user_connected/`username`
+
+**Status codes**
+
++ `200` User connected
++ `404` User not connected
 
 ---------------------------------------
 
@@ -79,7 +89,7 @@ If command complete successfully, an array of user objects is returned, with sta
 {
   count: count,
   users: {
-    [ { hostname, username, resource }, ... ]
+    [ { username, resource }, ... ]
   }
 }
 ```
@@ -95,10 +105,13 @@ Add a user. If the user exists, response status code is `409`. If a user is succ
 Include `password` in the request body
 
 ```
-{
-  password: "mypassword"
-}
+{ password: "mypassword" }
 ```
+
+**Status codes**
+
++ `201` User created
++ `409` User already exists
 
 ---------------------------------------
 
@@ -107,6 +120,11 @@ Include `password` in the request body
 Removes a user. If the user does not exist, response status code is `404`. If a user is successfully removed, `200`.
 
 > **DELETE** /admin_rest/user/`username`
+
+**Status codes**
+
++ `200` User deleted
++ `404` User does not exist
 
 ---------------------------------------
 
@@ -117,9 +135,7 @@ The only implemented attribute for now is `password`. Ultimately roster modifica
 > **PATCH** /admin_rest/user/`username`/`attribute`
 
 ```
-{
-  attribute: value
-}
+{ attribute: value }
 ```
 
 Example: For changing a user's password. Assuming user's name is `testuser`
@@ -129,10 +145,14 @@ Example: For changing a user's password. Assuming user's name is `testuser`
 With request body:
 
 ```
-{
- password: "mypassword" 
-}
+{ password: "mypassword" }
 ```
+
+**Status codes**
+
++ `200` User was updated successfully
++ `400` Invalid modification
++ `404` User does not exist
 
 If a user was updated successfully, response status code is `200`. If a user does not exist, response status code is `404`.
 
@@ -145,15 +165,45 @@ Send a message to a particular user on a particular host. Messages are sent from
 > **POST** /admin_rest/message/`username`
 
 ```
+{ message: "My message" }
+```
+
+**Status codes**
+
++ `200` Message sent
++ `202` Message delayed (sent to offline queue)
++ `404` User does not exist
+
+---------------------------------------
+
+###send multicast
+
+Send bulk messages to a number of particular users. Request body should contain an array of JSON objects, each with a `to` and `message` attribute.
+
+> **POST** /admin_rest/message
+
+```
 //request body
 {
-  message: "My message"
+  [
+    { to: "testuser", message: "My message" },
+    ...
+  ]
 }
 ```
 
-If message was sent successfully, response status code is `200`. If message was sent to offline queue (to be re-sent when the user becomes online), response status code is `201`. If the message cannot be delivered, response status code is `501`.
+If any messages were multicasted, response status code is `200`, and response body has the following form, where `s` is the number of messages sent, and `d` is the number of messages delayed (to be sent to offline queue).
 
----------------------------------------
+```
+  {
+    result: "Message multicasted to users: s/d"
+  }
+```
+
+**Status codes**
+
++ `200` Message sent
++ `404` No messages were sent; no valid recipients were found
 
 ###broadcast message
 
@@ -162,20 +212,18 @@ Send a message to every connected user using a particular host. Messages are sen
 > **POST** /admin_rest/broadcast
 
 ```
-//request body
-{
-  message: "My message"
-}
+{ message: "My message" }
 ```
 
-Successful response has status code `200`. In the response body is a count of the number of users who were sent the message. Example response:
+In the response body is a count of the number of users who were sent the message. Example response:
 
 ```
-//response body
-{
-  count: 100
-}
+{ count: 100 }
 ```
+
+**Status codes **
+
+`200` Broadcast successful
 
 ---------------------------------------
 
@@ -270,7 +318,7 @@ Remove a provided IP from whitelist.
 
 Add any of the following options to your `prosody.cfg.lua`.  You may forward additional HTTP options to Prosody's `http` module.
 
-###`admin_rest_secure` boolean
+**admin_rest_secure** boolean
 
 Whether incoming connections must be secure. Default is `false`.
 
@@ -278,7 +326,7 @@ Whether incoming connections must be secure. Default is `false`.
 admin_rest_secure = false;
 ```
 
-###`admin_rest_base` string
+**admin_rest_base** string
 
 Base path. Default paths begin with `/admin_rest`.
 
@@ -287,7 +335,7 @@ admin_rest_base = "/admin_rest";
 ```
 
 
-### `admin_rest_whitelist` array
+**admin_rest_whitelist** array
 
 List of IP addresses to whitelist. Only these IP addresses will be allowed to issue commands over HTTP. 
 
