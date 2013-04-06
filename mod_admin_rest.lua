@@ -380,9 +380,15 @@ local function send_multicast(event, path, body, hostname)
     until true
   end
 
-  local result = "Message multicasted to users: " .. sent .. "/" .. delayed;
+  local result;
 
-  respond(event, Response(200, result));
+  if sent > 0 then
+    result = "Message multicasted to users: " .. sent .. "/" .. delayed;
+    respond(event, Response(200, result));
+  else
+    result = "No multicast recipients";
+    respond(event, Response(404, result));
+  end
 
   module:log("info", result);
 end
