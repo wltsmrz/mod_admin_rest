@@ -340,7 +340,7 @@ end
 local function offline_enabled()
   local host = module:get_host();
   return mm.is_loaded(host, "offline")
-  or mm.is_loaded(host, "offline_authed")
+  or mm.is_loaded(host, "offline_bind")
   or false;
 end
 
