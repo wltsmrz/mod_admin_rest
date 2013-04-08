@@ -81,7 +81,7 @@ Unlike `get user`, this will not respond with stringified user content, which ca
 
 ###get connected users
 
-If command complete successfully, an array of user objects is returned, with status code `2001`. If no users are connected, an empty object is returned.
+If command complete successfully, an array of user objects is returned, with status code `201`. If no users are connected, an empty object is returned.
 
 > **GET** /admin_rest/users
 
@@ -91,6 +91,20 @@ If command complete successfully, an array of user objects is returned, with sta
   users: {
     [ { username, resource }, ... ]
   }
+}
+```
+
+---------------------------------------
+
+###get connected users count
+
+Get just the count of connected users.
+
+> **GET** /admin_rest/users/count
+
+```
+{
+  count: count
 }
 ```
 
