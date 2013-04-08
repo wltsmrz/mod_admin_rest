@@ -138,7 +138,7 @@ local function get_connected_users(hostname)
   local users = { };
 
   for username, user in pairs(sessions or {}) do
-    for resource, session in pairs(user.sessions or {}) do
+    for resource, _ in pairs(user.sessions or {}) do
       table.insert(users, { 
         username = username,
         resource = resource 
@@ -159,8 +159,8 @@ local function get_user_connected(event, path, body)
   local hostname = sp.nameprep(path.hostname);
   local username = sp.nodeprep(path.resource);
 
-  if not hostname or not username then
-    return respond(event, RESPONSES.invalid_path);
+  if not username then
+    return respond(event, RESPONSES.invalid_user);
   end
 
   local jid = jid.join(username, hostname);
@@ -204,8 +204,8 @@ local function get_user(event, path, body)
   local hostname = sp.nameprep(path.hostname);
   local username = sp.nodeprep(path.resource);
 
-  if not hostname or not username then
-    return respond(event, RESPONSES.invalid_path);
+  if not username then
+    return respond(event, RESPONSES.invalid_user);
   end
 
   if not um.user_exists(username, hostname) then
@@ -230,14 +230,26 @@ end
 
 local function get_users(event, path, body)
   local hostname = sp.nameprep(path.hostname);
+  local sessions = get_sessions(hostname);
 
-  if not hostname then
-    return respond(event, RESPONSES.invalid_path);
+  if path.resource == "count" then
+    local count = 0;
+    for _ in pairs(sessions or {}) do
+      count = count + 1;
+    end
+    respond(event, Response(200, { count = count }));
+  else
+    local users = { };
+    for username, user in pairs(sessions or {}) do
+      for resource, _ in pairs(user.sessions or {}) do
+        table.insert(users, { 
+          username = username,
+          resource = resource 
+        });
+      end
+    end
+    respond(event, Response(200, { users = users, count = #users }));
   end
-
-  local users = get_connected_users(hostname);
-
-  respond(event, Response(200, { users = users, count = #users }));
 end
 
 local function add_user(event, path, body)
@@ -280,8 +292,8 @@ local function remove_user(event, path, body)
   local hostname = sp.nameprep(path.hostname);
   local username = sp.nodeprep(path.resource);
 
-  if not hostname or not username then
-    return respond(event, RESPONSES.invalid_path);
+  if not username then
+    return respond(event, RESPONSES.invalid_user);
   end
 
   local jid = jid.join(username, hostname);
@@ -310,7 +322,7 @@ local function patch_user(event, path, body)
   local username = sp.nodeprep(path.resource);
   local attribute = path.attribute;
 
-  if not (hostname and username and attribute)  then
+  if not (username and attribute)  then
     return respond(event, RESPONSES.invalid_path);
   end
 
@@ -479,11 +491,21 @@ end
 
 function get_modules(event, path, body)
   local hostname = sp.nameprep(path.hostname);
+  local modules = mm.get_modules(hostname);
+
   local list = { }
-  for name in pairs(mm.get_modules(hostname) or {}) do
+
+  for name in pairs(modules or {}) do
     table.insert(list, name);
   end
-  respond(event, Response(200, { modules = list, count = #list }));
+
+  local result = { count = #list };
+
+  if path.resource ~= "count" then
+    result.modules = list;
+  end
+
+  respond(event, Response(200, result));
 end
 
 function load_module(event, path, body)
