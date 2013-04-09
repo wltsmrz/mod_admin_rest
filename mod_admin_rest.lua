@@ -99,7 +99,6 @@ local RESPONSES = {
   invalid_body    = Response(400, "Body does not exist or is malformed");
   invalid_host    = Response(404, "Host does not exist or is malformed");
   invalid_user    = Response(404, "User does not exist or is malformed");
-  offline_message = Response(202, "Message sent to offline queue");
   drop_message    = Response(501, "Message dropped per configuration");
   internal_error  = Response(500, "Internal server error");
   pong            = Response(200, "PONG");
@@ -168,9 +167,9 @@ local function get_user_connected(event, path, body)
   local response;
 
   if connected then
-    response = Response(200, "User is connected: " .. jid);
+    response = Response(200, { connected = true });
   else
-    response = Response(404, "User is not connected: " .. jid);
+    response = Response(404, { connected = false });
   end
 
   respond(event, response);
@@ -211,6 +210,10 @@ local function get_user(event, path, body)
   if not um.user_exists(username, hostname) then
     local joined = jid.join(username, hostname)
     return respond(event, Response(404, "User does not exist: " .. joined));
+  end
+
+  if path.resource == "connected" then
+    return get_user_connected(event, path, body);
   end
 
   local user = { hostname = hostname, username = username };
@@ -427,7 +430,7 @@ local function send_message(event, path, body)
       respond(event, RESPONSES.drop_message);
       return
     else
-      respond(event, RESPONSES.offline_message);
+      respond(event, Response(202, "Message sent to offline queue: " .. jid));
       module:fire_event("message/offline/handle", {
         stanza = stanza.deserialize(message)
       });
