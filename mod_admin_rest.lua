@@ -17,6 +17,7 @@ local rm = rostermanager;
 local mm = modulemanager;
 local hm = hostmanager;
 
+local hostname  = module:get_host();
 local secure    = module:get_option_boolean("admin_rest_secure", false);
 local base_path = module:get_option_string("admin_rest_base", "/admin_rest");
 local whitelist = module:get_option_array("admin_rest_whitelist", nil);
@@ -54,10 +55,9 @@ local function split_path(path)
   return result;
 end
 
-local function parse_path(hostname, path) 
+local function parse_path(path) 
   local split = split_path(url.unescape(path));
   return {
-    hostname  = hostname;
     route     = split[2];
     resource  = split[3];
     attribute = split[4];
@@ -154,27 +154,6 @@ local function get_recipient(hostname, username)
   return session, offline;
 end
 
-local function get_user_connected(event, path, body)
-  local hostname = sp.nameprep(path.hostname);
-  local username = sp.nodeprep(path.resource);
-
-  if not username then
-    return respond(event, RESPONSES.invalid_user);
-  end
-
-  local jid = jid.join(username, hostname);
-  local connected = get_session(hostname, username);
-  local response;
-
-  if connected then
-    response = Response(200, { connected = true });
-  else
-    response = Response(404, { connected = false });
-  end
-
-  respond(event, response);
-end
-
 local function normalize_user(user)
   local cleaned = { };
   cleaned.connected = user.connected or false;
@@ -199,8 +178,27 @@ local function normalize_user(user)
   return cleaned;
 end
 
+local function get_user_connected(event, path, body)
+  local username = sp.nodeprep(path.resource);
+
+  if not username then
+    return respond(event, RESPONSES.invalid_user);
+  end
+
+  local jid = jid.join(username, hostname);
+  local connected = get_session(hostname, username);
+  local response;
+
+  if connected then
+    response = Response(200, { connected = true });
+  else
+    response = Response(404, { connected = false });
+  end
+
+  respond(event, response);
+end
+
 local function get_user(event, path, body)
-  local hostname = sp.nameprep(path.hostname);
   local username = sp.nodeprep(path.resource);
 
   if not username then
@@ -212,7 +210,7 @@ local function get_user(event, path, body)
     return respond(event, Response(404, "User does not exist: " .. joined));
   end
 
-  if path.resource == "connected" then
+  if path.attribute == "connected" then
     return get_user_connected(event, path, body);
   end
 
@@ -232,7 +230,6 @@ local function get_user(event, path, body)
 end
 
 local function get_users(event, path, body)
-  local hostname = sp.nameprep(path.hostname);
   local sessions = get_sessions(hostname);
 
   if path.resource == "count" then
@@ -256,7 +253,6 @@ local function get_users(event, path, body)
 end
 
 local function add_user(event, path, body)
-  local hostname = sp.nameprep(path.hostname);
   local username = sp.nodeprep(path.resource);
   local password = body["password"];
 
@@ -292,7 +288,6 @@ local function add_user(event, path, body)
 end
 
 local function remove_user(event, path, body)
-  local hostname = sp.nameprep(path.hostname);
   local username = sp.nodeprep(path.resource);
 
   if not username then
@@ -321,7 +316,6 @@ local function remove_user(event, path, body)
 end
 
 local function patch_user(event, path, body) 
-  local hostname = sp.nameprep(path.hostname);
   local username = sp.nodeprep(path.resource);
   local attribute = path.attribute;
 
@@ -353,13 +347,12 @@ local function patch_user(event, path, body)
 end
 
 local function offline_enabled()
-  local host = module:get_host();
-  return mm.is_loaded(host, "offline")
-  or mm.is_loaded(host, "offline_bind")
-  or false;
+  return mm.is_loaded(hostname, "offline")
+      or mm.is_loaded(hostname, "offline_bind")
+      or false;
 end
 
-local function send_multicast(event, path, body, hostname)
+local function send_multicast(event, path, body)
   local recipients = body.recipients;
   local sent = 0;
   local delayed = 0;
@@ -409,11 +402,14 @@ local function send_multicast(event, path, body, hostname)
 end
 
 local function send_message(event, path, body)
-  local hostname = sp.nameprep(path.hostname);
   local username = sp.nodeprep(path.resource);
 
-  if not username and body.recipients then
-    return send_multicast(event, path, body, hostname);
+  if not username then
+    if body.recipients then
+      return send_multicast(event, path, body);
+    else
+      return respond(event, RESPONSES.invalid_user);
+    end
   end
 
   local session, offline = get_recipient(hostname, username);
@@ -450,7 +446,6 @@ local function send_message(event, path, body)
 end
 
 local function broadcast_message(event, path, body)
-  local hostname = sp.nameprep(path.hostname);
   local attrs = { from = hostname };
   local count = 0;
 
@@ -471,7 +466,6 @@ local function broadcast_message(event, path, body)
 end
 
 function get_module(event, path, body)
-  local hostname = sp.nameprep(path.hostname);
   local modulename = path.resource;
 
   if not modulename then
@@ -493,7 +487,6 @@ function get_module(event, path, body)
 end
 
 function get_modules(event, path, body)
-  local hostname = sp.nameprep(path.hostname);
   local modules = mm.get_modules(hostname);
 
   local list = { }
@@ -512,7 +505,6 @@ function get_modules(event, path, body)
 end
 
 function load_module(event, path, body)
-  local hostname = sp.nameprep(path.hostname);
   local modulename = path.resource;
   local fn = "load";
 
@@ -530,7 +522,6 @@ function load_module(event, path, body)
 end
 
 function unload_module(event, path, body)
-  local hostname = sp.nameprep(path.hostname);
   local modulename = path.resource;
 
   if not mm.is_loaded(hostname, modulename) then
@@ -690,8 +681,8 @@ local function handle_request(event)
 
   -- ********** Route ********** --
 
-  local path = parse_path(user_host, request.path);
-  local route, hostname = path.route, path.hostname;
+  local path = parse_path(request.path);
+  local route, hostname = path.route, hostname;
 
   -- Restrict to admin
   if not um.is_admin(username, hostname) then
