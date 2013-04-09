@@ -70,7 +70,13 @@ Each `session` item in the `sessions` list has the following structure:
 
 Unlike `get user`, this will not respond with stringified user content, which can be quite verbose as it contains session data. This command will respond with a `200` status code if the user is connected.
 
-> **GET** /admin_rest/user_connected/`username`
+> **GET** /admin_rest/`username`/connected
+
+Response:
+
+```
+{ connected: true }
+```
 
 **Status codes**
 
