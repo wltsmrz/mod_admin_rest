@@ -403,11 +403,11 @@ Alternatively, you may use `admin_rest` to reload itself by issuing a [load](htt
 
 Better still, you may use `admin_rest` itself to [add](https://github.com/wltsmrz/mod_admin_rest#add-to-whitelist) or [remove](https://github.com/wltsmrz/mod_admin_rest#remove-from-whitelist) IPs from whitelist while in operation.
 
-**admin_rest_message_prefix**
+**admin_rest_message_prefix** string
 
-**admin_rest_multicast_prefix**
+**admin_rest_multicast_prefix** string
 
-**admin_rest_broadcast_prefix**
+**admin_rest_broadcast_prefix** string
 
 Optional message prefixes
 
