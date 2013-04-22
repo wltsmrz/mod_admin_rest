@@ -390,7 +390,7 @@ local function send_multicast(event, path, body)
 
   local result;
 
-  if sent > 0 then
+  if sent + delayed > 0 then
     result = "Message multicasted to users: " .. sent .. "/" .. delayed;
     respond(event, Response(200, result));
   else
