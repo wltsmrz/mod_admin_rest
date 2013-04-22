@@ -352,6 +352,8 @@ local function offline_enabled()
       or false;
 end
 
+local multicast_prefix = module:get_option_string("admin_rest_multicast_prefix", nil);
+
 local function send_multicast(event, path, body)
   local recipients = body.recipients;
   local sent = 0;
@@ -364,6 +366,10 @@ local function send_multicast(event, path, body)
       local node = recipient.to;
 
       if not node or not msg then break end
+
+      if multicast_prefix then
+        msg = multicast_prefix .. msg;
+      end
 
       local session, offline = get_recipient(hostname, node);
 
@@ -401,6 +407,8 @@ local function send_multicast(event, path, body)
   module:log("info", result);
 end
 
+local message_prefix = module:get_option_string("admin_rest_message_prefix", nil);
+
 local function send_message(event, path, body)
   local username = sp.nodeprep(path.resource);
 
@@ -416,6 +424,10 @@ local function send_message(event, path, body)
 
   if not session and not offline then
     return respond(event, RESPONSES.invalid_user);
+  end
+
+  if message_prefix then
+    body.message = message_prefix .. body.message;
   end
 
   local jid = jid.join(username, hostname);
@@ -445,16 +457,24 @@ local function send_message(event, path, body)
   module:log("info", result);
 end
 
+local broadcast_prefix = module:get_option_string("admin_rest_broadcast_prefix", nil);
+
 local function broadcast_message(event, path, body)
   local attrs = { from = hostname };
   local count = 0;
 
+  if broadcast_prefix then
+    body.message = broadcast_prefix .. body.message;
+  end
+
   for username, session in pairs(get_sessions(hostname) or {}) do
     attrs.to = jid.join(username, hostname);
     local message = stanza.message(attrs, body.message);
+
     for _, session in pairs(session.sessions or {}) do
       session.send(message);
     end
+
     count = count + 1;
   end
 
