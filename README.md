@@ -321,7 +321,7 @@ Unload a module. Successful response status code is `200`. If a module is not lo
 
 ###get whitelist
 
-Returns array of whitelisted as per `admin_rest_whitelist` [configuration](https://github.com/Weltschmerz/mod_admin_rest#options). Returns an empty object if no whitelist configuration exists.
+Returns array of whitelisted as per `admin_rest_whitelist` [configuration](https://github.com/wltsmrz/mod_admin_rest#options). Returns an empty object if no whitelist configuration exists.
 
 > **GET** /admin_rest/whitelist
 
@@ -401,6 +401,12 @@ Alternatively, you may use `admin_rest` to reload itself by issuing a [load](htt
 
 > **PUT** /admin_rest/module/admin_rest
 
-Better still, you may use `admin_rest` itself to [add](https://github.com/Weltschmerz/mod_admin_rest#add-to-whitelist) or [remove](https://github.com/Weltschmerz/mod_admin_rest#remove-from-whitelist) IPs from whitelist while in operation.
+Better still, you may use `admin_rest` itself to [add](https://github.com/wltsmrz/mod_admin_rest#add-to-whitelist) or [remove](https://github.com/wltsmrz/mod_admin_rest#remove-from-whitelist) IPs from whitelist while in operation.
+
+**admin_rest_message_prefix**
+**admin_rest_multicast_prefix**
+**admin_rest_broadcast_prefix**
+
+Optional message prefixes
 
 ##TODO
