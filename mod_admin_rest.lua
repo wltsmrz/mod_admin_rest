@@ -12,10 +12,10 @@ local ok, error = pcall(function() JSON = require "cjson.safe" end);
 -- Fall back to util.json
 if not ok or error then JSON = require "util.json" end
 
-local um = usermanager;
-local rm = rostermanager;
-local mm = modulemanager;
-local hm = hostmanager;
+local um = require "core.usermanager";
+local rm = require "core.rostermanager";
+local mm = require "core.modulemanager";
+local hm = require "core.hostmanager";
 
 local hostname  = module:get_host();
 local secure    = module:get_option_boolean("admin_rest_secure", false);
