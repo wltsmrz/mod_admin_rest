@@ -16,6 +16,7 @@ local um = require "core.usermanager";
 local rm = require "core.rostermanager";
 local mm = require "core.modulemanager";
 local hm = require "core.hostmanager";
+local sm = require "core.storagemanager";
 
 local hostname  = module:get_host();
 local secure    = module:get_option_boolean("admin_rest_secure", false);
@@ -69,6 +70,31 @@ local function parse_auth(auth)
   return b64.decode(auth:match("[^ ]*$") or ""):match("([^:]*):(.*)");
 end
 
+-- Make a *one-way* subscription. User will see when contact is online,
+-- contact will not see when user is online.
+local function subscribe(user_jid, contact_jid)
+  local user_node, user_host = jid.split(user_jid);
+  local contact_username, contact_host = jid.split(contact_jid);
+  -- Update user's roster to say subscription request is pending...
+  rm.set_contact_pending_out(user_node, user_host, contact_jid);
+  -- Update contact's roster to say subscription request is pending...
+  rm.set_contact_pending_in(contact_username, contact_host, user_jid);
+  -- Update contact's roster to say subscription request approved...
+  rm.subscribed(contact_username, contact_host, user_jid);
+  -- Update user's roster to say subscription request approved...
+  rm.process_inbound_subscription_approval(user_node, user_host, contact_jid);
+end
+
+-- Unsubscribes user from contact (not contact from user, if subscribed).
+function unsubscribe(user_jid, contact_jid)  
+  local user_node, user_host = jid.split(user_jid);
+  local contact_username, contact_host = jid.split(contact_jid);
+  -- Update user's roster to say subscription is cancelled...
+  rm.unsubscribe(user_node, user_host, contact_jid);
+  -- Update contact's roster to say subscription is cancelled...
+  rm.unsubscribed(contact_username, contact_host, user_jid);
+end
+
 local function Response(status_code, message, array)
   local response = { };
 
@@ -99,6 +125,7 @@ local RESPONSES = {
   invalid_body    = Response(400, "Body does not exist or is malformed");
   invalid_host    = Response(404, "Host does not exist or is malformed");
   invalid_user    = Response(404, "User does not exist or is malformed");
+  invalid_contact = Response(404, "Contact does not exist or is malformed");
   drop_message    = Response(501, "Message dropped per configuration");
   internal_error  = Response(500, "Internal server error");
   pong            = Response(200, "PONG");
@@ -250,6 +277,72 @@ local function get_users(event, path, body)
     end
     respond(event, Response(200, { users = users, count = #users }));
   end
+end
+
+local function add_roster(event, path, body)
+  local username = sp.nodeprep(path.resource);
+
+  if not username then
+    return respond(event, RESPONSES.invalid_user);
+  end
+  local user_jid = jid.join(username, hostname);
+
+  local contact_jid = body["contact"];
+  
+  if not contact_jid then
+    return respond(event, RESPONSES.invalid_contact);
+  end
+
+-- Make a mutual subscription between jid1 and jid2. Each JID will see
+-- when the other one is online.
+  subscribe(user_jid, contact_jid);
+  subscribe(contact_jid, user_jid);
+  
+  respond(event, Response(200, 'Roster registered: ' .. user_jid .. ' and ' .. contact_jid));
+
+  module:fire_event("roster-registered", {
+    username = username;
+    hostname = hostname;
+    contact_jid = contact_jid;
+    source   = "mod_admin_rest";
+  })
+
+  module:log("info", result);
+end
+
+local function remove_roster(event, path, body)
+  local username = sp.nodeprep(path.resource);
+
+  if not username then
+    return respond(event, RESPONSES.invalid_user);
+  end
+  local user_jid = jid.join(username, hostname);
+
+  local contact_jid = body["contact"];
+  
+  if not contact_jid then
+    return respond(event, RESPONSES.invalid_contact);
+  end
+
+-- Make a mutual subscription between jid1 and jid2. Each JID will see
+-- when the other one is online.
+  unsubscribe(user_jid, contact_jid);
+  unsubscribe(contact_jid, user_jid);
+
+  local roster = rm.load_roster(username, hostname);
+  roster[contact_jid] = nil;
+  rm.save_roster(username, hostname, roster);
+  
+  respond(event, Response(200, 'Roster deleted: ' .. user_jid .. ' and ' .. contact_jid));
+
+  module:fire_event("roster-deleted", {
+    username = username;
+    hostname = hostname;
+    contact_jid = contact_jid;
+    source   = "mod_admin_rest";
+  })
+
+  module:log("info", result);
 end
 
 local function add_user(event, path, body)
@@ -627,6 +720,11 @@ local ROUTES = {
 
   users = {
     GET = get_users;
+  };
+
+  roster = {
+    POST = add_roster;
+    DELETE = remove_roster;
   };
 
   message = {
