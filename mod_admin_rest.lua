@@ -34,28 +34,28 @@ end
 if whitelist then whitelist = to_set(whitelist) end
 
 local function split_path(path)
-  local result = {}; 
+  local result = {};
   local pattern = "(.-)/";
   local last_end = 1;
-  local s, e, cap = path:find(pattern, 1); 
+  local s, e, cap = path:find(pattern, 1);
 
   while s do
     if s ~= 1 or cap ~= "" then
       table.insert(result, cap);
-    end 
+    end
     last_end = e + 1;
     s, e, cap = path:find(pattern, last_end);
-  end 
+  end
 
   if last_end <= #path then
     cap = path:sub(last_end);
     table.insert(result, cap);
-  end 
+  end
 
   return result;
 end
 
-local function parse_path(path) 
+local function parse_path(path)
   local split = split_path(url.unescape(path));
   return {
     route     = split[2];
@@ -108,7 +108,7 @@ local function respond(event, res, headers)
 	local response = event.response;
 
   if headers then
-    for header, data in pairs(headers) do 
+    for header, data in pairs(headers) do
       response.headers[header] = data;
     end
   end
@@ -132,15 +132,15 @@ local function get_session(hostname, username)
   return sessions and sessions[username];
 end
 
-local function get_connected_users(hostname) 
+local function get_connected_users(hostname)
   local sessions = get_sessions(hostname);
   local users = { };
 
   for username, user in pairs(sessions or {}) do
     for resource, _ in pairs(user.sessions or {}) do
-      table.insert(users, { 
+      table.insert(users, {
         username = username,
-        resource = resource 
+        resource = resource
       });
     end
   end
@@ -161,7 +161,7 @@ local function normalize_user(user)
   cleaned.roster    = { };
 
   for resource, session in pairs(user.sessions or {}) do
-    local c_session = { 
+    local c_session = {
       resource = resource;
       id       = session.conn.id;
       ip       = session.conn._ip;
@@ -242,9 +242,9 @@ local function get_users(event, path, body)
     local users = { };
     for username, user in pairs(sessions or {}) do
       for resource, _ in pairs(user.sessions or {}) do
-        table.insert(users, { 
+        table.insert(users, {
           username = username,
-          resource = resource 
+          resource = resource
         });
       end
     end
@@ -279,9 +279,9 @@ local function add_user(event, path, body)
   respond(event, Response(201, result));
 
   module:fire_event("user-registered", {
-    username = username;
-    hostname = hostname;
-    source   = "mod_admin_rest";
+    username = username,
+    host = hostname,
+    source   = "mod_admin_rest"
   })
 
   module:log("info", result);
@@ -315,7 +315,7 @@ local function remove_user(event, path, body)
   module:log("info", "Deregistered user: " .. jid);
 end
 
-local function patch_user(event, path, body) 
+local function patch_user(event, path, body)
   local username = sp.nodeprep(path.resource);
   local attribute = path.attribute;
 
@@ -657,13 +657,13 @@ local ROUTES = {
 --Reserved top-level request routes
 local RESERVED = to_set({ "admin" });
 
---Entry point for incoming requests. 
+--Entry point for incoming requests.
 --Authenticate admin and route request.
 local function handle_request(event)
   local request = event.request;
 
   -- Check whitelist for IP
-  if whitelist and not whitelist[request.conn._ip] then 
+  if whitelist and not whitelist[request.conn._ip] then
     return respond(event, { status_code = 401, message = nil });
   end
 
@@ -683,14 +683,14 @@ local function handle_request(event)
   username = jid.prep(username);
 
   -- Validate authentication details
-  if not username or not password then 
+  if not username or not password then
     return respond(event, RESPONSES.invalid_auth);
   end
 
   local user_node, user_host = jid.split(username);
 
   -- Validate host
-  if not hosts[user_host] then 
+  if not hosts[user_host] then
     return respond(event, RESPONSES.invalid_host);
   end
 
