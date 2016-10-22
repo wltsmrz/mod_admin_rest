@@ -255,6 +255,7 @@ end
 local function add_user(event, path, body)
   local username = sp.nodeprep(path.resource);
   local password = body["password"];
+  local regip = body["regip"];
 
   if not username then
     return respond(event, RESPONSES.invalid_path);
@@ -281,6 +282,7 @@ local function add_user(event, path, body)
   module:fire_event("user-registered", {
     username = username,
     host = hostname,
+    regip = regip,
     source   = "mod_admin_rest"
   })
 
@@ -736,6 +738,9 @@ local function handle_request(event)
   if request.body and #request.body > 0 then
     if not pcall(function() body = JSON.decode(request.body) end) then
       return respond(event, RESPONSES.decode_failure);
+    end
+    if not body["regip"] then
+      body["regip"] = request.conn._ip;
     end
   end
 

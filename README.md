@@ -125,8 +125,12 @@ Add a user. If the user exists, response status code is `409`. If a user is succ
 Include `password` in the request body
 
 ```
-{ password: "mypassword" }
+{ password: "mypassword",
+  regip: "ipadress"
+ }
 ```
+
+regip is optional.
 
 **Status codes**
 
@@ -226,7 +230,7 @@ If any messages were multicasted, response status code is `200`, and response bo
 
 ###broadcast message
 
-Send a message to every connected user using a particular host. Messages are sent from the hostname. Include the content of your message in a JSON-encoded request body. 
+Send a message to every connected user using a particular host. Messages are sent from the hostname. Include the content of your message in a JSON-encoded request body.
 
 > **POST** /admin_rest/broadcast
 
@@ -325,7 +329,7 @@ Returns array of whitelisted as per `admin_rest_whitelist` [configuration](https
 
 > **GET** /admin_rest/whitelist
 
-An example response body: 
+An example response body:
 
 ```
 {
@@ -383,10 +387,10 @@ admin_rest_base = "/admin_rest";
 
 **admin_rest_whitelist** array
 
-List of IP addresses to whitelist. Only these IP addresses will be allowed to issue commands over HTTP. 
+List of IP addresses to whitelist. Only these IP addresses will be allowed to issue commands over HTTP.
 
 ```
-admin_rest_whitelist = { 
+admin_rest_whitelist = {
   "127.0.0.1"
 };
 ```
