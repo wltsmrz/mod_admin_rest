@@ -86,7 +86,7 @@ local function subscribe(user_jid, contact_jid)
 end
 
 -- Unsubscribes user from contact (not contact from user, if subscribed).
-function unsubscribe(user_jid, contact_jid)  
+function unsubscribe(user_jid, contact_jid)
   local user_node, user_host = jid.split(user_jid);
   local contact_username, contact_host = jid.split(contact_jid);
   -- Update user's roster to say subscription is cancelled...
@@ -279,6 +279,19 @@ local function get_users(event, path, body)
   end
 end
 
+local function get_roster(event, path, body)
+  local username = sp.nodeprep(path.resource);
+
+  if not username then
+    return respond(event, RESPONSES.invalid_user);
+  end
+  local user_jid = jid.join(username, hostname);
+
+  local roster = rm.load_roster(username, hostname);
+
+  respond(event, Response(200, { roster = roster, count = #roster }));
+end
+
 local function add_roster(event, path, body)
   local username = sp.nodeprep(path.resource);
 
@@ -288,7 +301,7 @@ local function add_roster(event, path, body)
   local user_jid = jid.join(username, hostname);
 
   local contact_jid = body["contact"];
-  
+
   if not contact_jid then
     return respond(event, RESPONSES.invalid_contact);
   end
@@ -297,8 +310,10 @@ local function add_roster(event, path, body)
 -- when the other one is online.
   subscribe(user_jid, contact_jid);
   subscribe(contact_jid, user_jid);
-  
-  respond(event, Response(200, 'Roster registered: ' .. user_jid .. ' and ' .. contact_jid));
+
+  local result = 'Roster registered: ' .. user_jid .. ' and ' .. contact_jid;
+
+  respond(event, Response(200, result));
 
   module:fire_event("roster-registered", {
     username = username;
@@ -319,7 +334,7 @@ local function remove_roster(event, path, body)
   local user_jid = jid.join(username, hostname);
 
   local contact_jid = body["contact"];
-  
+
   if not contact_jid then
     return respond(event, RESPONSES.invalid_contact);
   end
@@ -332,8 +347,10 @@ local function remove_roster(event, path, body)
   local roster = rm.load_roster(username, hostname);
   roster[contact_jid] = nil;
   rm.save_roster(username, hostname, roster);
-  
-  respond(event, Response(200, 'Roster deleted: ' .. user_jid .. ' and ' .. contact_jid));
+
+  local result = 'Roster deleted: ' .. user_jid .. ' and ' .. contact_jid;
+
+  respond(event, Response(200, result));
 
   module:fire_event("roster-deleted", {
     username = username;
@@ -725,6 +742,7 @@ local ROUTES = {
   };
 
   roster = {
+    GET = get_roster;
     POST = add_roster;
     DELETE = remove_roster;
   };

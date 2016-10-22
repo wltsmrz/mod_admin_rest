@@ -182,6 +182,66 @@ If a user was updated successfully, response status code is `200`. If a user doe
 
 ---------------------------------------
 
+###get roster of user
+
+Get the rosters of the user.
+If command complete successfully, an array of roster objects is returned, with status code `200`. If no roster, an empty object is returned.
+
+> **Get** /admin_rest/roster/`username`
+
+```
+{
+  count: count,
+  roster: {
+    [ username, ... ]
+  }
+}
+```
+
+**Status codes**
+
++ `200` Get roster
+
+---------------------------------------
+
+###add roster to user
+
+Add a roster to a user. If the contact user does not exist, response status code is `404`. If a user is successfully removed, `200`.
+
+> **Add** /admin_rest/roster/`username`
+
+With request body:
+
+```
+{ contact: "roster jid" }
+```
+
+**Status codes**
+
++ `200` Roster added
++ `404` Contact does not exist or is malformed
+
+---------------------------------------
+
+###remove roster from user
+
+Removes a roster from a user. If the contact user does not exist, response status code is `404`. If a user is successfully removed, `200`.
+
+> **DELETE** /admin_rest/roster/`username`
+
+With request body:
+
+```
+{ contact: "roster jid" }
+```
+
+**Status codes**
+
++ `200` Roster deleted
++ `404` Contact does not exist or is malformed
+
+---------------------------------------
+
 ###send message
 
 Send a message to a particular user on a particular host. Messages are sent from the hostname. Include the content of your message in a JSON-encoded request body.
