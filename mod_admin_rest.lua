@@ -422,7 +422,7 @@ local function add_user(event, path, body)
   module:fire_event("user-registered", {
     username = username,
     host = hostname,
-    regip = regip,
+    ip = regip,
     source   = "mod_admin_rest"
   })
 
