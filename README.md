@@ -193,7 +193,7 @@ If command complete successfully, an array of roster objects is returned, with s
 {
   count: count,
   roster: {
-    [ username, ... ]
+    [["item",{"jid":"jid1","subscription":"both","group":["group1"]}], ... ]
   }
 }
 ```

@@ -285,11 +285,32 @@ local function get_roster(event, path, body)
   if not username then
     return respond(event, RESPONSES.invalid_user);
   end
-  local user_jid = jid.join(username, hostname);
+
+  if not um.user_exists(username, hostname) then
+    local joined = jid.join(username, hostname)
+    return respond(event, Response(404, "User does not exist: " .. joined));
+  end
 
   local roster = rm.load_roster(username, hostname);
 
-  respond(event, Response(200, { roster = roster, count = #roster }));
+  local query = {};
+  for jid in pairs(roster) do
+    if jid then
+      local grouplist = {};
+      for group in pairs(roster[jid].groups) do
+        table.insert(grouplist, group);
+      end
+      table.insert(query, {"item", {
+        jid = jid,
+        subscription = roster[jid].subscription,
+        ask = roster[jid].ask,
+        name = roster[jid].name,
+        group = grouplist
+      }});
+    end
+  end
+
+  respond(event, Response(200, { roster = query, count = #query }));
 end
 
 local function add_roster(event, path, body)
@@ -304,6 +325,10 @@ local function add_roster(event, path, body)
 
   if not contact_jid then
     return respond(event, RESPONSES.invalid_contact);
+  end
+
+  if not um.user_exists(username, hostname) then
+    return respond(event, Response(404, "User does not exist: " .. user_jid));
   end
 
 -- Make a mutual subscription between jid1 and jid2. Each JID will see
@@ -331,7 +356,12 @@ local function remove_roster(event, path, body)
   if not username then
     return respond(event, RESPONSES.invalid_user);
   end
-  local user_jid = jid.join(username, hostname);
+
+  local user_jid = jid.join(username, hostname)
+
+  if not um.user_exists(username, hostname) then
+    return respond(event, Response(404, "User does not exist: " .. user_jid));
+  end
 
   local contact_jid = body["contact"];
 
