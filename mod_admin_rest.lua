@@ -16,6 +16,7 @@ local um = require "core.usermanager";
 local rm = require "core.rostermanager";
 local mm = require "core.modulemanager";
 local hm = require "core.hostmanager";
+local sm = require "core.storagemanager";
 
 local hostname  = module:get_host();
 local secure    = module:get_option_boolean("admin_rest_secure", false);
@@ -34,28 +35,28 @@ end
 if whitelist then whitelist = to_set(whitelist) end
 
 local function split_path(path)
-  local result = {}; 
+  local result = {};
   local pattern = "(.-)/";
   local last_end = 1;
-  local s, e, cap = path:find(pattern, 1); 
+  local s, e, cap = path:find(pattern, 1);
 
   while s do
     if s ~= 1 or cap ~= "" then
       table.insert(result, cap);
-    end 
+    end
     last_end = e + 1;
     s, e, cap = path:find(pattern, last_end);
-  end 
+  end
 
   if last_end <= #path then
     cap = path:sub(last_end);
     table.insert(result, cap);
-  end 
+  end
 
   return result;
 end
 
-local function parse_path(path) 
+local function parse_path(path)
   local split = split_path(url.unescape(path));
   return {
     route     = split[2];
@@ -67,6 +68,31 @@ end
 -- Parse request Authentication headers. Return username, password
 local function parse_auth(auth)
   return b64.decode(auth:match("[^ ]*$") or ""):match("([^:]*):(.*)");
+end
+
+-- Make a *one-way* subscription. User will see when contact is online,
+-- contact will not see when user is online.
+local function subscribe(user_jid, contact_jid)
+  local user_node, user_host = jid.split(user_jid);
+  local contact_username, contact_host = jid.split(contact_jid);
+  -- Update user's roster to say subscription request is pending...
+  rm.set_contact_pending_out(user_node, user_host, contact_jid);
+  -- Update contact's roster to say subscription request is pending...
+  rm.set_contact_pending_in(contact_username, contact_host, user_jid);
+  -- Update contact's roster to say subscription request approved...
+  rm.subscribed(contact_username, contact_host, user_jid);
+  -- Update user's roster to say subscription request approved...
+  rm.process_inbound_subscription_approval(user_node, user_host, contact_jid);
+end
+
+-- Unsubscribes user from contact (not contact from user, if subscribed).
+function unsubscribe(user_jid, contact_jid)
+  local user_node, user_host = jid.split(user_jid);
+  local contact_username, contact_host = jid.split(contact_jid);
+  -- Update user's roster to say subscription is cancelled...
+  rm.unsubscribe(user_node, user_host, contact_jid);
+  -- Update contact's roster to say subscription is cancelled...
+  rm.unsubscribed(contact_username, contact_host, user_jid);
 end
 
 local function Response(status_code, message, array)
@@ -99,6 +125,7 @@ local RESPONSES = {
   invalid_body    = Response(400, "Body does not exist or is malformed");
   invalid_host    = Response(404, "Host does not exist or is malformed");
   invalid_user    = Response(404, "User does not exist or is malformed");
+  invalid_contact = Response(404, "Contact does not exist or is malformed");
   drop_message    = Response(501, "Message dropped per configuration");
   internal_error  = Response(500, "Internal server error");
   pong            = Response(200, "PONG");
@@ -108,7 +135,7 @@ local function respond(event, res, headers)
 	local response = event.response;
 
   if headers then
-    for header, data in pairs(headers) do 
+    for header, data in pairs(headers) do
       response.headers[header] = data;
     end
   end
@@ -132,15 +159,15 @@ local function get_session(hostname, username)
   return sessions and sessions[username];
 end
 
-local function get_connected_users(hostname) 
+local function get_connected_users(hostname)
   local sessions = get_sessions(hostname);
   local users = { };
 
   for username, user in pairs(sessions or {}) do
     for resource, _ in pairs(user.sessions or {}) do
-      table.insert(users, { 
+      table.insert(users, {
         username = username,
-        resource = resource 
+        resource = resource
       });
     end
   end
@@ -161,7 +188,7 @@ local function normalize_user(user)
   cleaned.roster    = { };
 
   for resource, session in pairs(user.sessions or {}) do
-    local c_session = { 
+    local c_session = {
       resource = resource;
       id       = session.conn.id;
       ip       = session.conn._ip;
@@ -242,9 +269,9 @@ local function get_users(event, path, body)
     local users = { };
     for username, user in pairs(sessions or {}) do
       for resource, _ in pairs(user.sessions or {}) do
-        table.insert(users, { 
+        table.insert(users, {
           username = username,
-          resource = resource 
+          resource = resource
         });
       end
     end
@@ -252,9 +279,123 @@ local function get_users(event, path, body)
   end
 end
 
+local function get_roster(event, path, body)
+  local username = sp.nodeprep(path.resource);
+
+  if not username then
+    return respond(event, RESPONSES.invalid_user);
+  end
+
+  if not um.user_exists(username, hostname) then
+    local joined = jid.join(username, hostname)
+    return respond(event, Response(404, "User does not exist: " .. joined));
+  end
+
+  local roster = rm.load_roster(username, hostname);
+
+  local query = {};
+  for jid in pairs(roster) do
+    if jid then
+      local grouplist = {};
+      for group in pairs(roster[jid].groups) do
+        table.insert(grouplist, group);
+      end
+      table.insert(query, {"item", {
+        jid = jid,
+        subscription = roster[jid].subscription,
+        ask = roster[jid].ask,
+        name = roster[jid].name,
+        group = grouplist
+      }});
+    end
+  end
+
+  respond(event, Response(200, { roster = query, count = #query }));
+end
+
+local function add_roster(event, path, body)
+  local username = sp.nodeprep(path.resource);
+
+  if not username then
+    return respond(event, RESPONSES.invalid_user);
+  end
+  local user_jid = jid.join(username, hostname);
+
+  local contact_jid = body["contact"];
+
+  if not contact_jid then
+    return respond(event, RESPONSES.invalid_contact);
+  end
+
+  if not um.user_exists(username, hostname) then
+    return respond(event, Response(404, "User does not exist: " .. user_jid));
+  end
+
+-- Make a mutual subscription between jid1 and jid2. Each JID will see
+-- when the other one is online.
+  subscribe(user_jid, contact_jid);
+  subscribe(contact_jid, user_jid);
+
+  local result = 'Roster registered: ' .. user_jid .. ' and ' .. contact_jid;
+
+  respond(event, Response(200, result));
+
+  module:fire_event("roster-registered", {
+    username = username;
+    hostname = hostname;
+    contact_jid = contact_jid;
+    source   = "mod_admin_rest";
+  })
+
+  module:log("info", result);
+end
+
+local function remove_roster(event, path, body)
+  local username = sp.nodeprep(path.resource);
+
+  if not username then
+    return respond(event, RESPONSES.invalid_user);
+  end
+
+  local user_jid = jid.join(username, hostname)
+
+  if not um.user_exists(username, hostname) then
+    return respond(event, Response(404, "User does not exist: " .. user_jid));
+  end
+
+  local contact_jid = body["contact"];
+
+  if not contact_jid then
+    return respond(event, RESPONSES.invalid_contact);
+  end
+
+-- Make a mutual subscription between jid1 and jid2. Each JID will see
+-- when the other one is online.
+  unsubscribe(user_jid, contact_jid);
+  unsubscribe(contact_jid, user_jid);
+
+  local roster = rm.load_roster(username, hostname);
+  roster[contact_jid] = nil;
+  rm.save_roster(username, hostname, roster);
+
+  local result = 'Roster deleted: ' .. user_jid .. ' and ' .. contact_jid;
+
+  respond(event, Response(200, result));
+
+  module:fire_event("roster-deleted", {
+    username = username;
+    hostname = hostname;
+    contact_jid = contact_jid;
+    source   = "mod_admin_rest";
+  })
+
+  module:log("info", result);
+end
+
 local function add_user(event, path, body)
   local username = sp.nodeprep(path.resource);
   local password = body["password"];
+  local regip = body["regip"];
 
   if not username then
     return respond(event, RESPONSES.invalid_path);
@@ -279,9 +420,10 @@ local function add_user(event, path, body)
   respond(event, Response(201, result));
 
   module:fire_event("user-registered", {
-    username = username;
-    hostname = hostname;
-    source   = "mod_admin_rest";
+    username = username,
+    host = hostname,
+    ip = regip,
+    source   = "mod_admin_rest"
   })
 
   module:log("info", result);
@@ -315,7 +457,7 @@ local function remove_user(event, path, body)
   module:log("info", "Deregistered user: " .. jid);
 end
 
-local function patch_user(event, path, body) 
+local function patch_user(event, path, body)
   local username = sp.nodeprep(path.resource);
   local attribute = path.attribute;
 
@@ -629,6 +771,12 @@ local ROUTES = {
     GET = get_users;
   };
 
+  roster = {
+    GET = get_roster;
+    POST = add_roster;
+    DELETE = remove_roster;
+  };
+
   message = {
     POST = send_message;
   };
@@ -657,13 +805,13 @@ local ROUTES = {
 --Reserved top-level request routes
 local RESERVED = to_set({ "admin" });
 
---Entry point for incoming requests. 
+--Entry point for incoming requests.
 --Authenticate admin and route request.
 local function handle_request(event)
   local request = event.request;
 
   -- Check whitelist for IP
-  if whitelist and not whitelist[request.conn._ip] then 
+  if whitelist and not whitelist[request.conn._ip] then
     return respond(event, { status_code = 401, message = nil });
   end
 
@@ -683,14 +831,14 @@ local function handle_request(event)
   username = jid.prep(username);
 
   -- Validate authentication details
-  if not username or not password then 
+  if not username or not password then
     return respond(event, RESPONSES.invalid_auth);
   end
 
   local user_node, user_host = jid.split(username);
 
   -- Validate host
-  if not hosts[user_host] then 
+  if not hosts[user_host] then
     return respond(event, RESPONSES.invalid_host);
   end
 
@@ -736,6 +884,9 @@ local function handle_request(event)
   if request.body and #request.body > 0 then
     if not pcall(function() body = JSON.decode(request.body) end) then
       return respond(event, RESPONSES.decode_failure);
+    end
+    if not body["regip"] then
+      body["regip"] = request.conn._ip;
     end
   end
 

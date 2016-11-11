@@ -125,8 +125,12 @@ Add a user. If the user exists, response status code is `409`. If a user is succ
 Include `password` in the request body
 
 ```
-{ password: "mypassword" }
+{ password: "mypassword",
+  regip: "ipadress"
+ }
 ```
+
+regip is optional.
 
 **Status codes**
 
@@ -178,6 +182,66 @@ If a user was updated successfully, response status code is `200`. If a user doe
 
 ---------------------------------------
 
+###get roster of user
+
+Get the rosters of the user.
+If command complete successfully, an array of roster objects is returned, with status code `200`. If no roster, an empty object is returned.
+
+> **Get** /admin_rest/roster/`username`
+
+```
+{
+  count: count,
+  roster: {
+    [["item",{"jid":"jid1","subscription":"both","group":["group1"]}], ... ]
+  }
+}
+```
+
+**Status codes**
+
++ `200` Get roster
+
+---------------------------------------
+
+###add roster to user
+
+Add a roster to a user. If the contact user does not exist, response status code is `404`. If a user is successfully removed, `200`.
+
+> **Add** /admin_rest/roster/`username`
+
+With request body:
+
+```
+{ contact: "roster jid" }
+```
+
+**Status codes**
+
++ `200` Roster added
++ `404` Contact does not exist or is malformed
+
+---------------------------------------
+
+###remove roster from user
+
+Removes a roster from a user. If the contact user does not exist, response status code is `404`. If a user is successfully removed, `200`.
+
+> **DELETE** /admin_rest/roster/`username`
+
+With request body:
+
+```
+{ contact: "roster jid" }
+```
+
+**Status codes**
+
++ `200` Roster deleted
++ `404` Contact does not exist or is malformed
+
+---------------------------------------
+
 ###send message
 
 Send a message to a particular user on a particular host. Messages are sent from the hostname. Include the content of your message in a JSON-encoded request body.
@@ -226,7 +290,7 @@ If any messages were multicasted, response status code is `200`, and response bo
 
 ###broadcast message
 
-Send a message to every connected user using a particular host. Messages are sent from the hostname. Include the content of your message in a JSON-encoded request body. 
+Send a message to every connected user using a particular host. Messages are sent from the hostname. Include the content of your message in a JSON-encoded request body.
 
 > **POST** /admin_rest/broadcast
 
@@ -325,7 +389,7 @@ Returns array of whitelisted as per `admin_rest_whitelist` [configuration](https
 
 > **GET** /admin_rest/whitelist
 
-An example response body: 
+An example response body:
 
 ```
 {
@@ -383,10 +447,10 @@ admin_rest_base = "/admin_rest";
 
 **admin_rest_whitelist** array
 
-List of IP addresses to whitelist. Only these IP addresses will be allowed to issue commands over HTTP. 
+List of IP addresses to whitelist. Only these IP addresses will be allowed to issue commands over HTTP.
 
 ```
-admin_rest_whitelist = { 
+admin_rest_whitelist = {
   "127.0.0.1"
 };
 ```
