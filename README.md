@@ -21,9 +21,11 @@ There are a few ways to administer Prosody; by using either the `mod_admin_telne
 
 This module depends on Prosody's `http` module, so it inherits the `http` module's configuration. You do not need to add `http` to the enabled modules list; it is loaded automatically. By default, http server listens on port `5280`. All requests must contain Basic authentication for a user who has administrative privileges. 
 HTTP Basic access authentication is one of the easiest authentication methods and it's only safe with a secure SSL/HTTPS connection. The header generated is: ("Authorization" is the Headerfieldname and "Basic {TOKEN}" the Value.)
+
 > `Authorization: Basic {TOKEN}`
 
 where the {TOKEN} is the base 64 of the username and password separated by a colon. In pseudo-code, it would be:
+
 > `base64(username + ':' + password)`
 
 Requests with bodies must contain `Content-Type` and `Content-Length` headers. Additionally, some `admin_rest` commands may require request bodies. `mod_admin_rest` attempts to make appropriate use of HTTP status codes and request methods. Request paths have the following general structure:
