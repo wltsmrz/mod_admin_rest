@@ -1,23 +1,23 @@
-#mod_admin_rest
+# mod_admin_rest
 
 A RESTful admin interface to [Prosody](http://prosody.im/) XMPP server.
 
-###Why
+### Why
 
 There are a few ways to administer Prosody; by using either the `mod_admin_telnet`, `mod_admin_adhoc`, or via `prosodyctl`. mod_admin_rest seeks to enable a more programmatic interface to Prosody commands that exist in the stock admin modules, and some commands that don't.
 
-###Note
+### Note
 
 + Compatible with `v0.9`. Not tested and likely incompatible with previous versions.
 + It's highly advisable to install [lua-cjson](http://www.kyne.com.au/~mark/software/lua-cjson.php). `mod_admin_rest` will use it if it is available.
 
-###Installation
+### Installation
 
 1. Place `mod_admin_rest.lua` in your `plugins` directory.
 2. Add `admin_rest` to `modules_enabled` list of your `prosody.cfg.lua`
 3. Start or restart Prosody
 
-##Issuing commands
+## Issuing commands
 
 This module depends on Prosody's `http` module, so it inherits the `http` module's configuration. You do not need to add `http` to the enabled modules list; it is loaded automatically. By default, http server listens on port `5280`. All requests must contain Basic authentication for a user who has administrative privileges. 
 HTTP Basic access authentication is one of the easiest authentication methods and it's only safe with a secure SSL/HTTPS connection. The header generated is: ("Authorization" is the Headerfieldname and "Basic {TOKEN}" the Value.)
@@ -36,11 +36,11 @@ Responses are JSON-encoded objects with a `result` property. They have the form:
 
 > `{ result: { ... } }`
 
-##Commands
+## Commands
 
 A handful of useful commands are supported. More will come in the future.
 
-###get user
+### get user
 
 If the user does not exist, response status code is `404`. Otherwise `200`. If a user is offline, response will contain `connected=false` and empty roster/session lists.
 
@@ -75,7 +75,7 @@ Each `session` item in the `sessions` list has the following structure:
 
 ---------------------------------------
 
-###get user connected
+### get user connected
 
 Unlike `get user`, this will not respond with stringified user content, which can be quite verbose as it contains session data. This command will respond with a `200` status code if the user is connected.
 
@@ -94,7 +94,7 @@ Response:
 
 ---------------------------------------
 
-###get connected users
+### get connected users
 
 If command complete successfully, an array of user objects is returned, with status code `200`. If no users are connected, an empty object is returned.
 
@@ -111,7 +111,7 @@ If command complete successfully, an array of user objects is returned, with sta
 
 ---------------------------------------
 
-###get connected users count
+### get connected users count
 
 Get just the count of connected users.
 
@@ -125,7 +125,7 @@ Get just the count of connected users.
 
 ---------------------------------------
 
-###add user
+### add user
 
 Add a user. If the user exists, response status code is `409`. If a user is successfully created, `201`.
 
@@ -148,7 +148,7 @@ regip is optional.
 
 ---------------------------------------
 
-###remove user
+### remove user
 
 Removes a user. If the user does not exist, response status code is `404`. If a user is successfully removed, `200`.
 
@@ -161,7 +161,7 @@ Removes a user. If the user does not exist, response status code is `404`. If a 
 
 ---------------------------------------
 
-###change user attributes
+### change user attributes
 
 The only implemented attribute for now is `password`. Ultimately roster modifications may be implemented. Supply values for attributes in the request body as encoded JSON:
 
@@ -191,7 +191,7 @@ If a user was updated successfully, response status code is `200`. If a user doe
 
 ---------------------------------------
 
-###get roster of user
+### get roster of user
 
 Get the rosters of the user.
 If command complete successfully, an array of roster objects is returned, with status code `200`. If no roster, an empty object is returned.
@@ -213,7 +213,7 @@ If command complete successfully, an array of roster objects is returned, with s
 
 ---------------------------------------
 
-###add roster to user
+### add roster to user
 
 Add a roster to a user. If the contact user does not exist, response status code is `404`. If a user is successfully removed, `200`.
 
@@ -232,7 +232,7 @@ With request body:
 
 ---------------------------------------
 
-###remove roster from user
+### remove roster from user
 
 Removes a roster from a user. If the contact user does not exist, response status code is `404`. If a user is successfully removed, `200`.
 
@@ -251,7 +251,7 @@ With request body:
 
 ---------------------------------------
 
-###send message
+### send message
 
 Send a message to a particular user on a particular host. Messages are sent from the hostname. Include the content of your message in a JSON-encoded request body.
 
@@ -269,7 +269,7 @@ Send a message to a particular user on a particular host. Messages are sent from
 
 ---------------------------------------
 
-###send multicast
+### send multicast
 
 Send bulk messages to a number of particular users. Request body should contain an array of JSON objects, each with a `to` and `message` attribute.
 
@@ -297,7 +297,7 @@ If any messages were multicasted, response status code is `200`, and response bo
 + `200` Message sent
 + `404` No messages were sent; no valid recipients were found
 
-###broadcast message
+### broadcast message
 
 Send a message to every connected user using a particular host. Messages are sent from the hostname. Include the content of your message in a JSON-encoded request body.
 
@@ -319,7 +319,7 @@ In the response body is a count of the number of users who were sent the message
 
 ---------------------------------------
 
-###get module
+### get module
 
 Returns the name and loaded state of provided module. Successful response status code is `200`.
 
@@ -341,7 +341,7 @@ Response has the following form:
 
 ---------------------------------------
 
-###list modules
+### list modules
 
 List loaded modules for a particular host. Successful response status code is `200`.
 
@@ -368,7 +368,7 @@ Sample response:
 
 ---------------------------------------
 
-###load module
+### load module
 
 Load or reload a module. Successful response status code is `200`.
 
@@ -380,7 +380,7 @@ Load or reload a module. Successful response status code is `200`.
 
 ---------------------------------------
 
-###unload module
+### unload module
 
 Unload a module. Successful response status code is `200`. If a module is not loaded, `404`.
 
@@ -392,7 +392,7 @@ Unload a module. Successful response status code is `200`. If a module is not lo
 
 ---------------------------------------
 
-###get whitelist
+### get whitelist
 
 Returns array of whitelisted as per `admin_rest_whitelist` [configuration](https://github.com/wltsmrz/mod_admin_rest#options). Returns an empty object if no whitelist configuration exists.
 
@@ -409,7 +409,7 @@ An example response body:
 
 ---------------------------------------
 
-###add to whitelist
+### add to whitelist
 
 Add a provided IP to whitelist.
 
@@ -421,7 +421,7 @@ Add a provided IP to whitelist.
 
 ---------------------------------------
 
-###remove from whitelist
+### remove from whitelist
 
 Remove a provided IP from whitelist.
 
@@ -433,7 +433,7 @@ Remove a provided IP from whitelist.
 
 ---------------------------------------
 
-##Options
+## Options
 
 Add any of the following options to your `prosody.cfg.lua`.  You may forward additional HTTP options to Prosody's `http` module.
 
@@ -484,4 +484,4 @@ Better still, you may use `admin_rest` itself to [add](https://github.com/wltsmr
 
 Optional message prefixes
 
-##TODO
+## TODO
